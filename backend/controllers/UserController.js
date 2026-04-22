@@ -1,7 +1,7 @@
 const User = require("../models/User");
 const errorHandler = require("../utils/errorHandler");
 const jwt = require("jsonwebtoken");
-const bcrypt = require("bcrypt");
+const bcrypt = require("bcryptjs");
 
 class UserController {
 
