@@ -1,13 +1,16 @@
-// app.js (Root Folder)
 const express = require("express");
 const app = express();
-const router = require("./routes/api"); // Import router [cite: 428]
 
-app.use(express.json()); // Middleware agar bisa baca JSON [cite: 491]
-app.use(express.urlencoded({ extended: true })); 
+const router = require("./routes/api");
 
-app.use(router); // Gunakan router 
+// middleware
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
+// route utama
+app.use("/api", router);
+
+// server
 app.listen(3000, () => {
-    console.log("Server running at: http://localhost:3000");
+  console.log("Server running at: http://localhost:3000");
 });

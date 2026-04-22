@@ -1,59 +1,106 @@
 const User = require("../models/User");
 const errorHandler = require("../utils/errorHandler");
+const jwt = require("jsonwebtoken");
+const bcrypt = require("bcrypt");
 
 class UserController {
-  // FITUR: Register (Create User)
-  register(req, res) {
+
+  // ✅ REGISTER (pakai bcrypt)
+  async register(req, res) {
     const { name, email, password } = req.body;
 
-    // VALIDASI Sprint 5: Required Fields
     if (!name || !email || !password) {
       return errorHandler(res, "Nama, Email, dan Password wajib diisi!", 400);
     }
 
-    // VALIDASI: Cek format email sederhana
-    if (!email.includes("@")) {
-      return errorHandler(res, "Format email tidak valid!", 400);
+    try {
+      // 🔥 HASH PASSWORD
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      const data = {
+        ...req.body,
+        password: hashedPassword,
+        role: "user" // default role
+      };
+
+      User.create(data, (err, result) => {
+        if (err) return errorHandler(res, err, 500);
+        res.json({
+          message: "Register berhasil",
+          userId: result.insertId
+        });
+      });
+
+    } catch (err) {
+      return errorHandler(res, err, 500);
+    }
+  }
+
+  // ✅ LOGIN (pakai bcrypt + JWT)
+  login(req, res) {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return errorHandler(res, "Email dan Password wajib diisi!", 400);
     }
 
-    User.create(req.body, (err, result) => {
-      if (err) return errorHandler(res, err, 500, "Gagal mendaftarkan user (Email mungkin sudah terdaftar)");
-      res.status(201).json({ 
-        success: true, 
-        message: "User berhasil didaftarkan",
-        userId: result.insertId 
+    User.findByEmail(email, async (err, result) => {
+      if (err) return errorHandler(res, err, 500);
+
+      if (result.length === 0) {
+        return errorHandler(res, "User tidak ditemukan", 404);
+      }
+
+      const user = result[0];
+
+      // 🔥 BANDIN HASH PASSWORD
+      const isMatch = await bcrypt.compare(password, user.password);
+
+      if (!isMatch) {
+        return errorHandler(res, "Password salah", 400);
+      }
+
+      // 🔐 JWT
+      const token = jwt.sign(
+        {
+          id: user.id,
+          email: user.email,
+          role: user.role
+        },
+        process.env.JWT_SECRET,
+        { expiresIn: "1d" }
+      );
+
+      res.json({
+        success: true,
+        message: "Login berhasil",
+        token
       });
     });
   }
 
-  // FITUR: Update Profil
-  update(req, res) {
-    const { id } = req.params;
-    const { name, email, phone, address } = req.body;
-
-    // VALIDASI Sprint 5
-    if (!name || !email) {
-      return errorHandler(res, "Nama dan Email tidak boleh kosong saat update", 400);
-    }
-
-    User.update(id, req.body, (err, result) => {
-      if (err) return errorHandler(res, err, 500, "Gagal memperbarui data user");
-      
-      if (result.affectedRows === 0) {
-        return errorHandler(res, "User tidak ditemukan", 404);
-      }
-
-      res.json({ success: true, message: "Profil berhasil diperbarui" });
-    });
-  }
-
-  // FITUR: Detail User
+  // ✅ DETAIL USER
   show(req, res) {
     const { id } = req.params;
     User.findById(id, (err, result) => {
       if (err) return errorHandler(res, err, 500);
-      if (result.length === 0) return errorHandler(res, "User tidak ditemukan", 404);
-      res.json({ success: true, data: result[0] });
+      res.json({
+        success: true,
+        data: result[0]
+      });
+    });
+  }
+
+  // ✅ UPDATE USER
+  update(req, res) {
+    const { id } = req.params;
+
+    User.update(id, req.body, (err, result) => {
+      if (err) return errorHandler(res, err, 500);
+      res.json({
+        success: true,
+        message: "Update berhasil"
+      });
     });
   }
 }
