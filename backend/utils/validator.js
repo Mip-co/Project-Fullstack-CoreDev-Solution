@@ -11,5 +11,17 @@ function validateId(id) {
   if (!id || isNaN(id)) return "ID tidak valid"; 
   return null;
 }
+function validateFile(file){
+    if(!file) return null;
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+    if (!allowedTypes.includes(file.mimetype)) {
+        return "Format harus berupa gambar (jpg, png, gif)";
+    }
 
-module.exports = { validateMedicine, validateId };
+    // validasi ukuran file (misalnya maksimal 5MB)
+    if(file.size > 2 * 1024 * 1024){
+        return "Ukuran file maksimal 2MB";
+    }
+    return null;
+}
+module.exports = { validateMedicine, validateId, validateFile };
