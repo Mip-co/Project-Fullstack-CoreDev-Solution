@@ -11,7 +11,10 @@ const OrderController = require("../controllers/OrderController");
 // middleware
 const auth = require("../middleware/auth");
 const authorize = require("../middleware/authorize");
+const upload = require("../middleware/upload");
 
+
+const AuthController = require("../controllers/AuthController");
 // ==========================================
 // 1. ENDPOINT MEDICINES (Daftar Obat)
 // ==========================================
@@ -56,5 +59,15 @@ router.get("/profile", auth, (req, res) => {
 
 router.get("/users/:id", auth, UserController.show);
 router.put("/users/:id", auth, UserController.update);
+
+// ==========================================
+// 5. Upload Foto Profil (PROTECTED)
+// ==========================================
+router.put(
+  "/profile/image",
+  auth,
+  upload.single("photo"),
+  AuthController.updateProfileImage
+);
 
 module.exports = router; 

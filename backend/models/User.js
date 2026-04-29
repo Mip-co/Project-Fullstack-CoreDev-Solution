@@ -35,6 +35,11 @@ class User {
     const sql = "UPDATE users SET name=?, email=?, phone=?, address=? WHERE id=?";
     db.query(sql, [data.name, data.email, data.phone, data.address, id], callback);
   }
+
+  static updateProfileImage(id, filename, callback) {
+  const sql = "UPDATE users SET profile_image = ? WHERE id = ?";
+  db.query(sql, [filename, id], callback);
+}
 }
 
 module.exports = User;
