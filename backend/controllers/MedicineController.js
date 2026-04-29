@@ -1,5 +1,6 @@
 const Medicine = require("../models/Medicine");
 const errorHandler = require("../utils/errorHandler");
+const { validateMedicine, validateId } = require("../utils/validator");
 
 class MedicineController {
   // GET: Tampil Semua
@@ -22,34 +23,40 @@ class MedicineController {
 
   // POST: Tambah Obat (Create)
   store(req, res) {
-    const { name, price, stock, category_id } = req.body;
+    const error = validateMedicine(req.body);
+    if (error) return errorHandler(res, error, 400);
 
-    // Validasi Sprint 5: Required & Tipe Data
-    if (!name || !price || !stock || !category_id) {
-      return errorHandler(res, "Field nama, harga, stok, dan kategori wajib diisi!", 400);
-    }
-    if (isNaN(price) || isNaN(stock)) {
-      return errorHandler(res, "Harga dan Stok harus berupa angka!", 400);
-    }
+  // Ambil image dari body (sementara, bukan upload file)
+  const data = {
+    ...req.body,
+    image: req.body.image || null
+  };
 
-    Medicine.create(req.body, (err) => {
-      if (err) return errorHandler(res, err, 500, "Gagal simpan database");
-      res.status(201).json({ success: true, message: "Obat berhasil ditambahkan" });
-    });
-  }
+  Medicine.create(data, (err) => {
+    if (err) return errorHandler(res, err, 500, "Gagal simpan database");
+    res.status(201).json({ success: true, message: "Obat berhasil ditambahkan" });
+  });
+}
 
   // PUT: Ubah Obat (Update)
   update(req, res) {
     const { id } = req.params;
-    const { name, price, stock, category_id } = req.body;
 
-    // Validasi Sprint 5
-    if (price && isNaN(price)) return errorHandler(res, "Harga harus angka", 400);
-    if (stock && isNaN(stock)) return errorHandler(res, "Stok harus angka", 400);
+    const idError = validateId(id);
+    if (idError) return errorHandler(res, idError, 400);
 
-    Medicine.update(id, req.body, (err, result) => {
+    const error = validateMedicine(req.body);
+    if (error) return errorHandler(res, error, 400);
+
+    const data = {
+      ...req.body,
+      image: req.body.image || null
+    };
+
+    Medicine.update(id, data, (err, result) => {
       if (err) return errorHandler(res, err, 500);
       if (result.affectedRows === 0) return errorHandler(res, "Obat tidak ditemukan", 404);
+
       res.json({ success: true, message: "Data obat berhasil diperbarui" });
     });
   }
