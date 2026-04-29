@@ -2,7 +2,8 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const { validateRegister, validateLogin } = require("../utils/authValidator");
-const errorHandler = require("../utils/errorHandler");
+const { sendError: errorHandler } = require("../utils/errorHandler");
+const { validateFile } = require("../utils/validator");
 
 class AuthController {
   register(req, res) {
@@ -78,6 +79,27 @@ class AuthController {
         success: true,
         message: "Login Berhasil",
         token
+      });
+    });
+  }
+
+  updateProfileImage(req, res) {
+    const userId = req.user.id; // dari JWT middleware
+    const file = req.file;
+
+    if (!file) {
+      return errorHandler(res, "File tidak ditemukan", 400);
+    }
+
+    const filename = file.filename;
+
+    User.updateProfileImage(userId, filename, (err) => {
+      if (err) return errorHandler(res, err, 500);
+
+      res.json({
+        success: true,
+        message: "Foto profil berhasil diupdate",
+        image: filename
       });
     });
   }
