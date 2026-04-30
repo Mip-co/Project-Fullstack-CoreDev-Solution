@@ -1,36 +1,48 @@
 const Order = require("../models/Order");
-const errorHandler = require("../utils/errorHandler");
+const { sendError } = require("../utils/errorHandler");
 
 class OrderController {
   // FITUR: Checkout (Proses beli)
   store(req, res) {
     const { user_id, total_price, items } = req.body;
 
-    // VALIDASI Sprint 5: Cek kelengkapan & tipe data
     if (!user_id || !total_price || !items) {
-      return errorHandler(res, "Data checkout tidak lengkap (user_id/total_price/items)", 400);
+      return sendError(
+        res,
+        "Data checkout tidak lengkap (user_id/total_price/items)",
+        400
+      );
     }
+
     if (!Array.isArray(items) || items.length === 0) {
-      return errorHandler(res, "Item belanja tidak boleh kosong dan harus berupa array!", 400);
+      return sendError(
+        res,
+        "Item belanja tidak boleh kosong dan harus berupa array!",
+        400
+      );
     }
 
     // 1. Simpan ke tabel orders
     Order.create({ user_id, total_price }, (err, result) => {
-      if (err) return errorHandler(res, err, 500, "Gagal membuat pesanan");
+      if (err) return sendError(res, err, 500, "Gagal membuat pesanan");
 
       const orderId = result.insertId;
 
-      // 2. Simpan setiap item ke order_items
+      // 2. Simpan ke order_items
       items.forEach((item) => {
-        Order.createItem({ order_id: orderId, ...item }, (itemErr) => {
-          if (itemErr) console.error("Gagal simpan item detail:", itemErr);
-        });
+        Order.createItem(
+          { order_id: orderId, ...item },
+          (itemErr) => {
+            if (itemErr)
+              console.error("Gagal simpan item detail:", itemErr);
+          }
+        );
       });
 
       res.status(201).json({
         success: true,
         message: "Checkout berhasil, pesanan sedang diproses",
-        order_id: orderId
+        order_id: orderId,
       });
     });
   }
@@ -40,32 +52,44 @@ class OrderController {
     const { userId } = req.params;
 
     Order.getByUserId(userId, (err, results) => {
-      if (err) return errorHandler(res, err, 500, "Gagal mengambil riwayat");
-      
+      if (err) return sendError(res, err, 500, "Gagal mengambil riwayat");
+
       if (results.length === 0) {
-        return errorHandler(res, "User belum memiliki riwayat pesanan", 404);
+        return sendError(
+          res,
+          "User belum memiliki riwayat pesanan",
+          404
+        );
       }
 
       res.json({
         success: true,
         message: "Berhasil mengambil riwayat pesanan",
-        data: results
+        data: results,
       });
     });
   }
 
-  // FITUR: Update Status (Misal untuk Admin)
+  // FITUR: Update Status
   update(req, res) {
     const { id } = req.params;
     const { status } = req.body;
 
-    if (!status) return errorHandler(res, "Status harus diisi", 400);
+    if (!status) {
+      return sendError(res, "Status harus diisi", 400);
+    }
 
     Order.updateStatus(id, status, (err, result) => {
-      if (err) return errorHandler(res, err, 500);
-      if (result.affectedRows === 0) return errorHandler(res, "Pesanan tidak ditemukan", 404);
-      
-      res.json({ success: true, message: "Status pesanan diperbarui" });
+      if (err) return sendError(res, err, 500);
+
+      if (result.affectedRows === 0) {
+        return sendError(res, "Pesanan tidak ditemukan", 404);
+      }
+
+      res.json({
+        success: true,
+        message: "Status pesanan diperbarui",
+      });
     });
   }
 }
