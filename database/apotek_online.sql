@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Waktu pembuatan: 29 Apr 2026 pada 04.00
+-- Waktu pembuatan: 30 Apr 2026 pada 09.15
 -- Versi server: 10.4.32-MariaDB
 -- Versi PHP: 8.2.12
 
@@ -33,6 +33,13 @@ CREATE TABLE `carts` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+--
+-- Dumping data untuk tabel `carts`
+--
+
+INSERT INTO `carts` (`id`, `user_id`, `created_at`) VALUES
+(1, 2, '2026-04-30 07:12:09');
+
 -- --------------------------------------------------------
 
 --
@@ -46,6 +53,13 @@ CREATE TABLE `cart_items` (
   `quantity` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+--
+-- Dumping data untuk tabel `cart_items`
+--
+
+INSERT INTO `cart_items` (`id`, `cart_id`, `medicine_id`, `quantity`) VALUES
+(1, 1, 1, 2);
+
 -- --------------------------------------------------------
 
 --
@@ -58,6 +72,15 @@ CREATE TABLE `categories` (
   `description` text DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data untuk tabel `categories`
+--
+
+INSERT INTO `categories` (`id`, `name`, `description`, `created_at`) VALUES
+(1, 'Obat Bebas', 'Dapat dibeli secara bebas tanpa resep dokter', '2026-04-30 07:12:09'),
+(2, 'Obat Keras', 'Wajib menyertakan resep dokter saat pembelian', '2026-04-30 07:12:09'),
+(3, 'Vitamin & Suplemen', 'Untuk menjaga daya tahan tubuh dan nutrisi', '2026-04-30 07:12:09');
 
 -- --------------------------------------------------------
 
@@ -76,6 +99,15 @@ CREATE TABLE `medicines` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+--
+-- Dumping data untuk tabel `medicines`
+--
+
+INSERT INTO `medicines` (`id`, `category_id`, `name`, `description`, `price`, `stock`, `image`, `created_at`) VALUES
+(1, 1, 'Paracetamol 500mg', 'Obat pereda nyeri dan penurun panas', 15000.00, 100, 'paracetamol.jpg', '2026-04-30 07:12:09'),
+(2, 2, 'Amoxicillin Kapsul', 'Antibiotik untuk infeksi bakteri (Wajib Resep)', 35000.00, 50, 'amoxicillin.png', '2026-04-30 07:12:09'),
+(3, 3, 'Vitamin C 1000mg', 'Suplemen vitamin C dosis tinggi', 45000.00, 200, 'vit-c.jpg', '2026-04-30 07:12:09');
+
 -- --------------------------------------------------------
 
 --
@@ -90,6 +122,13 @@ CREATE TABLE `orders` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+--
+-- Dumping data untuk tabel `orders`
+--
+
+INSERT INTO `orders` (`id`, `user_id`, `total_price`, `status`, `created_at`) VALUES
+(1, 2, 30000.00, 'pending', '2026-04-30 07:15:01');
+
 -- --------------------------------------------------------
 
 --
@@ -103,6 +142,13 @@ CREATE TABLE `order_items` (
   `quantity` int(11) DEFAULT NULL,
   `price` decimal(10,2) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data untuk tabel `order_items`
+--
+
+INSERT INTO `order_items` (`id`, `order_id`, `medicine_id`, `quantity`, `price`) VALUES
+(1, 1, 1, 2, 15000.00);
 
 -- --------------------------------------------------------
 
@@ -121,6 +167,14 @@ CREATE TABLE `users` (
   `profile_picture` varchar(255) DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data untuk tabel `users`
+--
+
+INSERT INTO `users` (`id`, `name`, `email`, `password`, `phone`, `address`, `role`, `profile_picture`, `created_at`) VALUES
+(1, 'Ahmad Miftahuddin', 'cpo@apotek.com', 'password123', NULL, NULL, 'admin', 'profil-mimi.jpg', '2026-04-30 07:12:09'),
+(2, 'Pembeli Setia', 'user@gmail.com', 'password123', NULL, NULL, 'user', 'default.png', '2026-04-30 07:12:09');
 
 --
 -- Indexes for dumped tables
@@ -184,43 +238,43 @@ ALTER TABLE `users`
 -- AUTO_INCREMENT untuk tabel `carts`
 --
 ALTER TABLE `carts`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT untuk tabel `cart_items`
 --
 ALTER TABLE `cart_items`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT untuk tabel `categories`
 --
 ALTER TABLE `categories`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT untuk tabel `medicines`
 --
 ALTER TABLE `medicines`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT untuk tabel `orders`
 --
 ALTER TABLE `orders`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT untuk tabel `order_items`
 --
 ALTER TABLE `order_items`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT untuk tabel `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- Ketidakleluasaan untuk tabel pelimpahan (Dumped Tables)
