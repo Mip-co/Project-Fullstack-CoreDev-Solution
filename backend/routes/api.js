@@ -1,68 +1,68 @@
-// routes/api.js
 const express = require("express");
-const router = express.Router(); 
+const router = express.Router();
 
-// Import Semua Controller (Pola MVC - Pertemuan 3 & 4)
+// Controllers
 const MedicineController = require("../controllers/MedicineController");
 const UserController = require("../controllers/UserController");
 const CartController = require("../controllers/CartController");
 const OrderController = require("../controllers/OrderController");
+const AuthController = require("../controllers/AuthController");
 
-// middleware
+// Middleware
 const auth = require("../middleware/auth");
-const authorize = require("../middleware/authorize");
 const upload = require("../middleware/upload");
 
-
-const AuthController = require("../controllers/AuthController");
 // ==========================================
-// 1. ENDPOINT MEDICINES (Daftar Obat)
+// 1. MEDICINES
 // ==========================================
-router.get("/medicines", MedicineController.index);           
-router.get("/medicines/:id", MedicineController.show);        
-router.post("/medicines", MedicineController.store);          
-router.put("/medicines/:id", MedicineController.update);      
-router.delete("/medicines/:id", MedicineController.destroy);   
+router.get("/medicines", MedicineController.index);
+router.get("/medicines/:id", MedicineController.show);
+router.post("/medicines", MedicineController.store);
+router.put("/medicines/:id", MedicineController.update);
+router.delete("/medicines/:id", MedicineController.destroy);
 
 // ==========================================
-// 2. ENDPOINT USER (Auth & Profile)
+// 2. AUTH & USER
 // ==========================================
 router.post("/login", UserController.login);
-router.post("/register", UserController.register);      // Register User
-router.get("/users/:id", UserController.show);          // Lihat Profil
-router.put("/users/:id", UserController.update);        // Update Profil
-// ==========================================
-// 3. ENDPOINT CART (Keranjang Belanja)
-// ==========================================
-router.post("/cart", CartController.add);              // Create
-router.put("/cart/:id", CartController.update);        // Update
-router.get("/cart/user/:userId", CartController.show); // Read
+router.post("/register", UserController.register);
+
+// 🔐 Protected user profile
+router.get("/users/:id", auth, UserController.show);
+router.put("/users/:id", auth, UserController.update);
 
 // ==========================================
-// 4. ENDPOINT CHECKOUT & ORDERS (Transaksi)
+// 3. CART
 // ==========================================
-// Endpoint Order & Checkout
-router.post("/checkout", OrderController.store);           // Proses Checkout
-router.get("/orders/user/:userId", OrderController.index);    // Lihat Riwayat
-router.put("/orders/:id/status", OrderController.update);     // Update Status (Opsional) 
+router.post("/cart", auth, CartController.add);
+router.put("/cart/:id", auth, CartController.update);
+router.get("/cart/user/:userId", auth, CartController.show);
 
 // ==========================================
-// 5. PROFILE (PROTECTED)
+// 4. ORDERS & CHECKOUT
+// ==========================================
+router.post("/checkout", auth, OrderController.store);
+
+// 👉 lebih clean naming
+router.get("/orders/user/:userId", auth, OrderController.index);
+
+// 👉 optional: kalau mau endpoint “history”
+router.get("/orders/history/:userId", auth, OrderController.index);
+
+router.put("/orders/:id/status", auth, OrderController.update);
+
+// ==========================================
+// 5. PROFILE
 // ==========================================
 router.get("/profile", auth, (req, res) => {
   res.json({
     success: true,
     message: "Akses berhasil",
-    user: req.user
+    user: req.user,
   });
 });
 
-router.get("/users/:id", auth, UserController.show);
-router.put("/users/:id", auth, UserController.update);
-
-// ==========================================
-// 5. Upload Foto Profil (PROTECTED)
-// ==========================================
+// Upload foto profil
 router.put(
   "/profile/image",
   auth,
@@ -70,4 +70,4 @@ router.put(
   AuthController.updateProfileImage
 );
 
-module.exports = router; 
+module.exports = router;
