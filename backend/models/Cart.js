@@ -1,19 +1,26 @@
-const db = require("../config/database");
+// File: backend/models/Cart.js
+const db = require("../config/database"); // Sesuai dengan struktur folder kamu
 
 class Cart {
-  // CREATE: Tambah item baru
+  // 1. Tambah ke keranjang
   static addItem(data, callback) {
     const sql = "INSERT INTO cart_items (cart_id, medicine_id, quantity) VALUES (?, ?, ?)";
     db.query(sql, [data.cart_id, data.medicine_id, data.quantity], callback);
   }
 
-  // UPDATE: Ubah jumlah barang yang sudah ada di keranjang
+  // 2. Update jumlah
   static updateQuantity(id, quantity, callback) {
     const sql = "UPDATE cart_items SET quantity = ? WHERE id = ?";
     db.query(sql, [quantity, id], callback);
   }
 
-  // Ambil isi keranjang
+  // 3. INI YANG TADI ERROR: Hapus barang
+  static deleteItem(id, callback) {
+    const sql = "DELETE FROM cart_items WHERE id = ?";
+    db.query(sql, [id], callback);
+  }
+
+  // 4. Ambil isi keranjang (Kueri buatan Alam)
   static getByUser(userId, callback) {
     const sql = `
       SELECT ci.id, m.name, m.price, ci.quantity 
@@ -25,4 +32,4 @@ class Cart {
   }
 }
 
-module.exports = Cart;
+module.exports = Cart; // Pastikan ini ada di paling bawah!

@@ -1,76 +1,47 @@
 const Order = require("../models/Order");
+const Cart = require("../models/Cart");
 const { sendError } = require("../utils/errorHandler");
 
 class OrderController {
-  // FITUR: Checkout (Proses beli)
+  // FITUR: Checkout Otomatis (CPO Version 🚀)
   store(req, res) {
-    const { user_id, total_price, items } = req.body;
+    const { user_id } = req.body; // Cukup minta user_id
 
-    if (!user_id || !total_price || !items) {
-      return sendError(
-        res,
-        "Data checkout tidak lengkap (user_id/total_price/items)",
-        400
-      );
-    }
+    if (!user_id) return sendError(res, "User ID harus ada!", 400);
 
-    if (!Array.isArray(items) || items.length === 0) {
-      return sendError(
-        res,
-        "Item belanja tidak boleh kosong dan harus berupa array!",
-        400
-      );
-    }
+    // 1. Ambil data keranjang dari database
+    Cart.getByUser(user_id, (err, cartItems) => {
+      if (err) return sendError(res, err, 500, "Gagal ambil keranjang");
+      if (cartItems.length === 0) return sendError(res, "Keranjang kosong!", 400);
 
-    // 1. Simpan ke tabel orders
-    Order.create({ user_id, total_price }, (err, result) => {
-      if (err) return sendError(res, err, 500, "Gagal membuat pesanan");
+      // 2. Hitung total harga otomatis
+      const total_price = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
-      const orderId = result.insertId;
+      // 3. Simpan ke tabel orders
+      Order.create({ user_id, total_price }, (err, result) => {
+        if (err) return sendError(res, err, 500, "Gagal buat pesanan");
+        const orderId = result.insertId;
 
-      // 2. Simpan ke order_items
-      items.forEach((item) => {
-        Order.createItem(
-          { order_id: orderId, ...item },
-          (itemErr) => {
-            if (itemErr)
-              console.error("Gagal simpan item detail:", itemErr);
-          }
-        );
-      });
+        // 4. Pindahkan detail barang & Hapus dari keranjang
+        cartItems.forEach((item) => {
+          Order.createItem({ order_id: orderId, medicine_id: item.id, quantity: item.quantity, price: item.price }, (itemErr) => {
+            if (!itemErr) {
+              // Setelah sukses dipindah, langsung hapus dari keranjang (Otomatis!)
+              Cart.deleteItem(item.id, () => {}); 
+            }
+          });
+        });
 
-      res.status(201).json({
-        success: true,
-        message: "Checkout berhasil, pesanan sedang diproses",
-        order_id: orderId,
+        res.status(201).json({
+          success: true,
+          message: "Checkout Otomatis Berhasil!",
+          order_id: orderId,
+          total_bayar: total_price
+        });
       });
     });
   }
-
-  // FITUR: Riwayat Pesanan
-  index(req, res) {
-    const { userId } = req.params;
-
-    Order.getByUserId(userId, (err, results) => {
-      if (err) return sendError(res, err, 500, "Gagal mengambil riwayat");
-
-      if (results.length === 0) {
-        return sendError(
-          res,
-          "User belum memiliki riwayat pesanan",
-          404
-        );
-      }
-
-      res.json({
-        success: true,
-        message: "Berhasil mengambil riwayat pesanan",
-        data: results,
-      });
-    });
-  }
-
-  // FITUR: Update Status
+// FITUR: Update Status (Biar rute /orders/:id/status tidak error)
   update(req, res) {
     const { id } = req.params;
     const { status } = req.body;
@@ -80,7 +51,7 @@ class OrderController {
     }
 
     Order.updateStatus(id, status, (err, result) => {
-      if (err) return sendError(res, err, 500);
+      if (err) return sendError(res, err, 500, "Gagal update status");
 
       if (result.affectedRows === 0) {
         return sendError(res, "Pesanan tidak ditemukan", 404);
@@ -88,8 +59,16 @@ class OrderController {
 
       res.json({
         success: true,
-        message: "Status pesanan diperbarui",
+        message: "Status pesanan berhasil diperbarui",
       });
+    });
+  }
+  // Riwayat & Update Status tetap sama...
+  index(req, res) {
+    const { userId } = req.params;
+    Order.getByUserId(userId, (err, results) => {
+      if (err) return sendError(res, err, 500);
+      res.json({ success: true, data: results });
     });
   }
 }

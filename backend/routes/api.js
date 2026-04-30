@@ -17,9 +17,15 @@ const upload = require("../middleware/upload");
 // ==========================================
 router.get("/medicines", MedicineController.index);
 router.get("/medicines/:id", MedicineController.show);
-router.post("/medicines", MedicineController.store);
-router.put("/medicines/:id", MedicineController.update);
-router.delete("/medicines/:id", MedicineController.destroy);
+
+// GANTI BAGIAN INI: Pastikan hanya ada satu POST dan pakai middleware upload
+router.post("/medicines", auth, upload.single('image'), MedicineController.store);
+
+// Update juga harus pakai upload kalau mau ganti foto
+router.put("/medicines/:id", auth, upload.single('image'), MedicineController.update);
+
+router.delete("/medicines/:id", auth, MedicineController.destroy);
+
 
 // ==========================================
 // 2. AUTH & USER
@@ -37,6 +43,7 @@ router.put("/users/:id", auth, UserController.update);
 router.post("/cart", auth, CartController.add);
 router.put("/cart/:id", auth, CartController.update);
 router.get("/cart/user/:userId", auth, CartController.show);
+router.delete("/cart/:id", auth, CartController.delete);
 
 // ==========================================
 // 4. ORDERS & CHECKOUT

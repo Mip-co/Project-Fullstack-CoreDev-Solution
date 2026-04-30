@@ -10,6 +10,16 @@ static getAll(callback) {
   db.query(sql, callback);
 }
 
+static getByCategory(categoryId, callback) {
+  const sql = `
+    SELECT m.*, c.name AS category_name
+    FROM medicines m
+    LEFT JOIN categories c ON m.category_id = c.id
+    WHERE m.category_id = ?
+  `;
+  db.query(sql, [categoryId], callback);
+}
+
 static getById(id, callback) {
   const sql = `
     SELECT m.*, c.name AS category_name
