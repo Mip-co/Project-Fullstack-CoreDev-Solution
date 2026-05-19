@@ -5,7 +5,8 @@ const router = express.Router();
 const MedicineController = require("../controllers/MedicineController");
 const UserController = require("../controllers/UserController");
 const CartController = require("../controllers/CartController");
-const OrderController = require("../controllers/OrderController");
+const CheckoutController = require("../controllers/CheckoutController"); // Ganti Order ke Checkout 🚀
+const HistoryController = require("../controllers/HistoryController");   // Tambah History Controller 🚀
 const AuthController = require("../controllers/AuthController");
 
 // Middleware
@@ -46,17 +47,15 @@ router.get("/cart/user/:userId", auth, CartController.show);
 router.delete("/cart/:id", auth, CartController.delete);
 
 // ==========================================
-// 4. ORDERS & CHECKOUT
+// 4. ORDERS & CHECKOUT (Sprint 8 - Split Version)
 // ==========================================
-router.post("/checkout", auth, OrderController.store);
+// 🛒 Bagian Checkout (Dikerjakan Anggota Tim A)
+router.post("/checkout", auth, CheckoutController.store);
 
-// 👉 lebih clean naming
-router.get("/orders/user/:userId", auth, OrderController.index);
-
-// 👉 optional: kalau mau endpoint “history”
-router.get("/orders/history/:userId", auth, OrderController.index);
-
-router.put("/orders/:id/status", auth, OrderController.update);
+// 📜 Bagian Riwayat & Status (Dikerjakan Anggota Tim B)
+router.get("/orders/user/:userId", auth, HistoryController.index);
+router.get("/orders/history/:userId", auth, HistoryController.index);
+router.put("/orders/:id/status", auth, HistoryController.update);
 
 // ==========================================
 // 5. PROFILE
