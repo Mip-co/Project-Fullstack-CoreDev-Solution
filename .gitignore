@@ -1,6 +1,5 @@
 # Dependency directories
 node_modules/
-
 # Environment variables (SANGAT PENTING!)
 .env
 
@@ -15,4 +14,3 @@ Thumbs.db
 
 # Package manager lockfiles
 # (Hapus baris di bawah kalau kamu ingin tetap men-track versi library)
-package-lock.json
