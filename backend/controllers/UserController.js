@@ -1,5 +1,5 @@
 const User = require("../models/User");
-const { sendError } = require("../utils/errorHandler");
+const { sendError } = require("../utils/errorHandler"); // ✅ Kita pakai sendError
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 
@@ -10,7 +10,7 @@ class UserController {
     const { name, email, password } = req.body;
 
     if (!name || !email || !password) {
-      return errorHandler(res, "Nama, Email, dan Password wajib diisi!", 400);
+      return sendError(res, "Nama, Email, dan Password wajib diisi!", 400);
     }
 
     try {
@@ -24,15 +24,16 @@ class UserController {
       };
 
       User.create(data, (err, result) => {
-        if (err) return errorHandler(res, err, 500);
+        if (err) return sendError(res, err, 500);
         res.json({
+          success: true,
           message: "Register berhasil",
           userId: result.insertId
         });
       });
 
     } catch (err) {
-      return errorHandler(res, err, 500);
+      return sendError(res, err, 500);
     }
   }
 
@@ -41,41 +42,45 @@ class UserController {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      return errorHandler(res, "Email dan Password wajib diisi!", 400);
+      return sendError(res, "Email dan Password wajib diisi!", 400);
     }
 
     User.findByEmail(email, async (err, result) => {
-      if (err) return errorHandler(res, err, 500);
+      if (err) return sendError(res, err, 500);
 
       if (result.length === 0) {
-        return errorHandler(res, "User tidak ditemukan", 404);
+        return sendError(res, "User tidak ditemukan", 404);
       }
 
       const user = result[0];
 
-      // 🔥 BANDIN HASH PASSWORD
-      const isMatch = await bcrypt.compare(password, user.password);
+      try {
+        // 🔥 BANDINGKAN HASH PASSWORD
+        const isMatch = await bcrypt.compare(password, user.password);
 
-      if (!isMatch) {
-        return errorHandler(res, "Password salah", 400);
+        if (!isMatch) {
+          return sendError(res, "Password salah", 400);
+        }
+
+        // 🔐 JWT
+        const token = jwt.sign(
+          {
+            id: user.id,
+            email: user.email,
+            role: user.role
+          },
+          process.env.JWT_SECRET,
+          { expiresIn: "1d" }
+        );
+
+        res.json({
+          success: true,
+          message: "Login berhasil",
+          token
+        });
+      } catch (err) {
+        return sendError(res, err, 500);
       }
-
-      // 🔐 JWT
-      const token = jwt.sign(
-        {
-          id: user.id,
-          email: user.email,
-          role: user.role
-        },
-        process.env.JWT_SECRET,
-        { expiresIn: "1d" }
-      );
-
-      res.json({
-        success: true,
-        message: "Login berhasil",
-        token
-      });
     });
   }
 
@@ -83,7 +88,9 @@ class UserController {
   show(req, res) {
     const { id } = req.params;
     User.findById(id, (err, result) => {
-      if (err) return errorHandler(res, err, 500);
+      if (err) return sendError(res, err, 500);
+      if (!result || result.length === 0) return sendError(res, "User tidak ditemukan", 404);
+      
       res.json({
         success: true,
         data: result[0]
@@ -95,8 +102,14 @@ class UserController {
   update(req, res) {
     const { id } = req.params;
 
-    User.update(id, req.body, (err, result) => {
-      if (err) return errorHandler(res, err, 500);
+    // Jika ada update foto profil dari Multer
+    const data = {
+      ...req.body,
+      ...(req.file && { profile_picture: req.file.filename })
+    };
+
+    User.update(id, data, (err, result) => {
+      if (err) return sendError(res, err, 500);
       res.json({
         success: true,
         message: "Update berhasil"

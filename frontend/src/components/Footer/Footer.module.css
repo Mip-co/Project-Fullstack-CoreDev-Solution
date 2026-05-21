@@ -1,0 +1,12 @@
+.footer {
+  background-color: #0f172a; /* Hitam pekat profesional */
+  color: #f8fafc;
+  padding: 2.5rem 1rem;
+  text-align: center;
+  margin-top: 5rem;
+}
+.content {
+  max-width: 1200px;
+  margin: 0 auto;
+  font-size: 0.95rem;
+}
