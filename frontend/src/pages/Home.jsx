@@ -1,13 +1,15 @@
-import { useState } from "react";
-import medicineData from "../utils/constants/medicineData";
+import { useState, useEffect } from "react";//  Kodingan yang benar dan presisi:
+import { getMedicines } from "../utils/api/medicineApi";
 import MedicineCard from "../components/MedicineCard/MedicineCard";
 import Hero from "../components/Hero/Hero";
 
 function Home({ onAddToCart }) {
-  // 1. State untuk memegang kategori yang sedang aktif diklik (Default: 'Semua')
+  // State manajemen data sesuai materi halaman 43
+  const [medicines, setMedicines] = useState([]); // Menampung array data obat dari MySQL
+  const [loading, setLoading] = useState(true);   // Status loading data
+  const [error, setError] = useState(null);       // Status penampung pesan error jika backend mati
   const [selectedCategory, setSelectedCategory] = useState("Semua");
 
-  // 2. Data daftar kategori dummy (Nanti dicocokkan dengan master tabel kategori di MySQL kamu)
   const categories = [
     { id: "all", name: "Semua" },
     { id: "cat-01", name: "Vitamin" },
@@ -16,29 +18,38 @@ function Home({ onAddToCart }) {
     { id: "cat-04", name: "Masker" }
   ];
 
-  // 3. Tambahkan properti categoryId secara internal pada data obat dummy kita
-  // (Ini simulasi relasi database id_kategori)
-  const obatWithCategory = medicineData.map((obat) => {
-    if (obat.id === "med-01") return { ...obat, categoryId: "cat-02", categoryName: "Obat Flu" }; // Paracetamol
-    if (obat.id === "med-02") return { ...obat, categoryId: "cat-01", categoryName: "Vitamin" };  // Amoxicillin / Vitamin C Orange
-    if (obat.id === "med-03") return { ...obat, categoryId: "cat-01", categoryName: "Vitamin" };  // Vitamin C 1000mg
-    return { ...obat, categoryId: "cat-03", categoryName: "P3K" }; // Default cadangan jika ada obat lain
-  });
+  // 🔄 Memicu Lifecycle Mount untuk mengambil data dari server (Halaman 16 & 43)
+  useEffect(() => {
+    async function fetchMedicineData() {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const response = await getMedicines(); // Menembak API Express backend
+        // Sesuaikan target array-nya (misal response.data atau response.data.data tergantung struktur Express-mu)
+        setMedicines(response.data.data || response.data); 
+      } catch (err) {
+        setError(err.message || "Gagal memuat data dari server backend.");
+      } finally {
+        setLoading(false);
+      }
+    }
 
-  // 4. Logika memfilter obat berdasarkan tombol kategori yang diklik
+    fetchMedicineData();
+  }, []); // Array kosong memastikan kueri hanya ditembak SEKALI saat halaman dimuat (Halaman 20)
+
+  // Logika Filter Kategori (Membaca kolom categoryName hasil kueri tabel database asli kamu)
   const filteredObat = selectedCategory === "Semua" 
-    ? obatWithCategory 
-    : obatWithCategory.filter((obat) => obat.categoryName === selectedCategory);
+    ? medicines 
+    : medicines.filter((obat) => obat.categoryName === selectedCategory);
 
   return (
     <div>
-      {/* Hero Section Banner */}
       <Hero />
 
-      {/* Konten Utama */}
       <div style={{ maxWidth: "1200px", margin: "4rem auto 2rem auto", padding: "0 2rem" }}>
         
-        {/* 🗂️ SEKSI SEARCH BY KATEGORI (Sesuai Struktur Database Kamu) */}
+        {/* Kategori Slider Filter */}
         <div style={{ marginBottom: "3rem" }}>
           <h3 style={{ fontSize: "1.2rem", fontWeight: "800", color: "#0f172a", marginBottom: "1rem" }}>
             Cari Berdasarkan Kategori
@@ -60,7 +71,6 @@ function Home({ onAddToCart }) {
                     fontWeight: "700",
                     fontSize: "0.95rem",
                     cursor: "pointer",
-                    boxShadow: isActive ? "0 4px 12px rgba(15, 169, 104, 0.2)" : "none",
                     transition: "all 0.2s ease"
                   }}
                 >
@@ -71,27 +81,39 @@ function Home({ onAddToCart }) {
           </div>
         </div>
 
-        {/* Grid Katalog Obat */}
+        {/* Seksi Tampilan Katalog Utama */}
         <div style={{ borderTop: "1px dashed #e2e8f0", paddingTop: "2rem" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "2rem" }}>
             <h2 style={{ fontSize: "1.6rem", fontWeight: "800", color: "#0f172a", margin: 0 }}>
               🌿 Produk Kesehatan ({selectedCategory})
             </h2>
-            <span style={{ color: "#64748b", fontSize: "0.95rem", fontWeight: "600" }}>
-              Menampilkan {filteredObat.length} Produk
-            </span>
           </div>
           
-          {filteredObat.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "3rem", color: "#64748b", backgroundColor: "#ffffff", borderRadius: "16px", border: "1px solid #e2e8f0" }}>
-              Belum ada stok obat untuk kategori ini.
+          {/* ⏳ Kondisional Render sesuai Panduan Materi Halaman 43 */}
+          {loading && (
+            <p style={{ textAlign: "center", color: "#64748b", padding: "2rem" }}>
+              🔄 Sedang menarik data dari database ApotekNow...
+            </p>
+          )}
+
+          {error && (
+            <div style={{ textAlign: "center", padding: "2rem", color: "#ef4444", backgroundColor: "#fee2e2", borderRadius: "12px" }}>
+              ⚠️ Eror: {error}. <br />
+              <span style={{ fontSize: "0.9rem", color: "#64748b" }}>Pastikan server XAMPP MySQL dan Express.js kamu sudah dinyalakan!</span>
             </div>
-          ) : (
-            /* Tampilan Grid Katalog */
+          )}
+
+          {!loading && !error && filteredObat.length === 0 && (
+            <div style={{ textAlign: "center", padding: "3rem", color: "#64748b", backgroundColor: "#ffffff", borderRadius: "16px", border: "1px solid #e2e8f0" }}>
+              Belum ada data stok obat di database untuk kategori ini.
+            </div>
+          )}
+
+          {!loading && !error && filteredObat.length > 0 && (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: "2rem" }}>
               {filteredObat.map((obat) => (
                 <MedicineCard 
-                  key={obat.id} 
+                  key={obat.id || obat.medicine_id} // Menyesuaikan primary key dari database MySQL kamu
                   obat={obat} 
                   onAddToCart={onAddToCart} 
                 />
