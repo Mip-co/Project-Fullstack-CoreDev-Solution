@@ -1,8 +1,9 @@
-import { useState } from "react";
+import React from "react";
+import { useNavigate } from "react-router-dom"; // 🔑 ISI SPRINT 11: Import Navigate
 
-function Cart({ cartItems, onUpdateQuantity, onRemoveItem, onClearCart, onCheckoutReady, onViewChange }) {
+function Cart({ cartItems, onUpdateQuantity, onRemoveItem, onClearCart, onCheckoutReady }) {
   
-  // Hitung total harga keseluruhan dari item di keranjang
+  const navigate = useNavigate(); // 🔑 Pemicu perpindahan URL halaman resmi
   const totalHarga = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const totalJenisProduk = cartItems.length;
 
@@ -22,7 +23,7 @@ function Cart({ cartItems, onUpdateQuantity, onRemoveItem, onClearCart, onChecko
           <p style={{ color: "#64748b", marginBottom: "1.5rem", fontSize: "1.1rem" }}>Keranjang belanja Anda masih kosong.</p>
           <button 
             type="button"
-            onClick={() => onViewChange("katalog")} 
+            onClick={() => navigate("/")} // 🔑 FIX BUTTON: Melempar URL balik ke Katalog Utama
             style={{ backgroundColor: "#0fa968", color: "white", border: "none", padding: "0.75rem 2rem", borderRadius: "10px", fontWeight: "700", cursor: "pointer" }}
           >
             Kembali Ke Katalog Utama
@@ -47,15 +48,26 @@ function Cart({ cartItems, onUpdateQuantity, onRemoveItem, onClearCart, onChecko
                 
                 {/* Info Utama & Gambar */}
                 <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-                  <img src={item.poster} alt={item.title} style={{ width: "64px", height: "64px", objectFit: "cover", borderRadius: "12px", backgroundColor: "#f8fafc" }} />
+                  <img 
+                    src={`http://localhost:3000/uploads/${item.image}`}
+                    alt={item.name} 
+                    style={{ width: "64px", height: "64px", objectFit: "contain", borderRadius: "12px", backgroundColor: "#f8fafc", border: "1px solid #e2e8f0" }} 
+                    onError={(e) => { e.target.src = 'https://via.placeholder.com/64?text=No+Image'; }}
+                  />
                   <div>
-                    <h4 style={{ fontSize: "1.05rem", fontWeight: "700", color: "#0f172a", marginBottom: "4px" }}>{item.title}</h4>
-                    <p style={{ fontSize: "0.85rem", color: "#94a3b8" }}>{item.desc}</p>
-                    <p style={{ fontSize: "0.9rem", fontWeight: "700", color: "#0fa968", marginTop: "4px" }}>Rp {item.price.toLocaleString("id-ID")}</p>
+                    <h4 style={{ fontSize: "1.05rem", fontWeight: "700", color: "#0f172a", marginBottom: "4px" }}>
+                      {item.name}
+                    </h4>
+                    <p style={{ fontSize: "0.85rem", color: "#94a3b8", margin: 0 }}>
+                      {item.description}
+                    </p>
+                    <p style={{ fontSize: "0.9rem", fontWeight: "700", color: "#0fa968", marginTop: "4px", marginButtom: 0 }}>
+                      Rp {Number(item.price).toLocaleString("id-ID")}
+                    </p>
                   </div>
                 </div>
 
-                {/* Pengatur Kuantitas (Jumlah) */}
+                {/* Pengatur Kuantitas */}
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "12px" }}>
                   <button 
                     type="button"
@@ -100,7 +112,7 @@ function Cart({ cartItems, onUpdateQuantity, onRemoveItem, onClearCart, onChecko
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "1.5rem" }}>
               <button 
                 type="button"
-                onClick={() => onViewChange("katalog")}
+                onClick={() => navigate("/")} // 🔑 FIX BUTTON: Menggunakan navigate() untuk kembali belanja
                 style={{ background: "none", border: "none", color: "#0fa968", fontWeight: "700", fontSize: "1rem", cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" }}
               >
                 ← Lanjut Belanja
@@ -139,7 +151,10 @@ function Cart({ cartItems, onUpdateQuantity, onRemoveItem, onClearCart, onChecko
             {/* Tombol Navigasi Menuju Checkout */}
             <button 
               type="button"
-              onClick={() => onCheckoutReady(cartItems)}
+              onClick={() => {
+                if (onCheckoutReady) onCheckoutReady(cartItems); // Oper data barang riil ke state checkout
+                navigate("/checkout"); // 🔑 FIX BUTTON: Alihkan user masuk ke halaman checkout riil
+              }}
               style={{ 
                 width: "100%", 
                 backgroundColor: "#0fa968", 

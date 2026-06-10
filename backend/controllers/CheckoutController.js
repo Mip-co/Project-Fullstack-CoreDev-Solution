@@ -22,14 +22,15 @@ class CheckoutController {
         if (err) return sendError(res, err, 500);
         const orderId = result.insertId;
 
-        // 4. Pindahkan item ke order_items & bersihkan keranjang[cite: 1, 2]
+        // 4. Pindahkan item ke order_items & bersihkan keranjang
         cartItems.forEach((item) => {
           Checkout.createOrderItem({ 
             order_id: orderId, 
-            medicine_id: item.id, 
+            medicine_id: item.medicine_id || item.id, // 🔑 AMAN: Mengambil ID Obat asli dari alias SQL kita
             quantity: item.quantity, 
             price: item.price 
           }, (itemErr) => {
+            // 🔑 AMAN: Menghapus item keranjang memakai item.id bawaan Alam
             if (!itemErr) Cart.deleteItem(item.id, () => {}); 
           });
         });

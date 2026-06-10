@@ -4,13 +4,7 @@ const { validateMedicine, validateId } = require("../utils/validator");
 
 class MedicineController {
   // GET: Tampil Semua
-  index(req, res) {
-    Medicine.getAll((err, results) => {
-      if (err) return sendError(res, err, 500, "Gagal mengambil data");
-      res.json({ success: true, data: results });
-    });
-  }
-
+ 
   index(req, res) {
   const { category_id } = req.query; // Mengambil filter dari URL
 

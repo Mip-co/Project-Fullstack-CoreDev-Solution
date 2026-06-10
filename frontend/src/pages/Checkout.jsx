@@ -1,21 +1,21 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom"; // 🔑 SPRINT 11: Import Navigate untuk Checkout
 
-function Checkout({ checkoutItems, onExecutePayment, onViewChange }) {
+function Checkout({ checkoutItems, onExecutePayment }) {
+  const navigate = useNavigate(); // 🔑 Pemicu perpindahan URL halaman resmi
   const [shippingData, setShippingData] = useState({
     nama: "",
     telepon: "",
     alamat: ""
   });
 
-  // State untuk kurir pengiriman (Default: Ekspres sesuai mockup)
+  // State untuk kurir pengiriman (Default: Ekspres)
   const [shippingMethod, setShippingMethod] = useState("Ekspres");
 
-  // Biaya kirim dinamis mengikuti pilihan di mockup kamu
+  // Biaya kirim dinamis mengikuti pilihan
   const biayaPengiriman = shippingMethod === "Ekspres" ? 15000 : 5000;
 
   const totalHargaBarang = checkoutItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  
-  // Memperbaiki typo spasi yang bikin error layar merah tadi 🚀
   const totalAkhirTagihan = totalHargaBarang + biayaPengiriman;
 
   const handleInputChange = (e) => {
@@ -30,19 +30,27 @@ function Checkout({ checkoutItems, onExecutePayment, onViewChange }) {
       return;
     }
     
-    onExecutePayment({
-      ...shippingData,
-      shippingMethod,
-      items: checkoutItems,
-      total_price: totalAkhirTagihan
-    });
+    // 1. Eksekusi pemindahan data & pembersihan keranjang belanja ke App.jsx
+    if (onExecutePayment) {
+      onExecutePayment({
+        ...shippingData,
+        shippingMethod,
+        items: checkoutItems,
+        total_price: totalAkhirTagihan
+      });
+    }
+
+    // 2. 🔑 FIX TOMBOL BAYAR: Pindahkan rute URL browser ke katalog utama setelah sukses transaksi!
+    navigate("/");
   };
 
   return (
     <div style={{ maxWidth: "1200px", margin: "3rem auto", padding: "0 2rem", fontFamily: "inherit" }}>
+      
+      {/* 🔑 FIX TOMBOL KEMBALI: Menggunakan navigate() formal React Router DOM */}
       <button 
         type="button"
-        onClick={() => onViewChange("cart")} 
+        onClick={() => navigate("/cart")} 
         style={{ border: "none", background: "none", color: "#0fa968", fontWeight: "700", cursor: "pointer", marginBottom: "1.5rem", display: "flex", alignItems: "center", gap: "5px", fontSize: "1rem" }}
       >
         ← Kembali ke Keranjang
@@ -52,7 +60,7 @@ function Checkout({ checkoutItems, onExecutePayment, onViewChange }) {
 
       <form onSubmit={handleSubmitOrder} style={{ display: "grid", gridTemplateColumns: "2.2fr 1fr", gap: "3rem", alignItems: "start" }}>
         
-        {/* KOLOM KIRI: FORM DATA */}
+        {/* KOLOM KIRI: FORM DATA ALAMAT */}
         <div style={{ display: "flex", flexDirection: "column", gap: "2rem" }}>
           
           {/* 📍 ALAMAT PENGIRIMAN */}
@@ -95,12 +103,11 @@ function Checkout({ checkoutItems, onExecutePayment, onViewChange }) {
             </div>
           </div>
 
-          {/* 🚚 METODE PENGIRIMAN (Sesuai Gambar Mockup) */}
+          {/* 🚚 METODE PENGIRIMAN */}
           <div style={{ backgroundColor: "#ffffff", border: "1px solid #e2e8f0", padding: "2rem", borderRadius: "20px" }}>
             <h3 style={{ fontSize: "1.25rem", fontWeight: "700", color: "#0f172a", marginBottom: "1.25rem" }}>🚚 Metode Pengiriman</h3>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.5rem" }}>
               
-              {/* Opsi 1: Ekspres */}
               <label style={{ border: shippingMethod === "Ekspres" ? "2px solid #0fa968" : "1px solid #e2e8f0", backgroundColor: shippingMethod === "Ekspres" ? "#edfaf4" : "#ffffff", padding: "1.25rem", borderRadius: "16px", display: "flex", alignItems: "flex-start", gap: "12px", cursor: "pointer", transition: "all 0.2s" }}>
                 <input type="radio" name="shippingMethod" checked={shippingMethod === "Ekspres"} onChange={() => setShippingMethod("Ekspres")} style={{ accentColor: "#0fa968", marginTop: "4px" }} />
                 <div>
@@ -110,7 +117,6 @@ function Checkout({ checkoutItems, onExecutePayment, onViewChange }) {
                 </div>
               </label>
 
-              {/* Opsi 2: Reguler */}
               <label style={{ border: shippingMethod === "Reguler" ? "2px solid #0fa968" : "1px solid #e2e8f0", backgroundColor: shippingMethod === "Reguler" ? "#edfaf4" : "#ffffff", padding: "1.25rem", borderRadius: "16px", display: "flex", alignItems: "flex-start", gap: "12px", cursor: "pointer", transition: "all 0.2s" }}>
                 <input type="radio" name="shippingMethod" checked={shippingMethod === "Reguler"} onChange={() => setShippingMethod("Reguler")} style={{ accentColor: "#0fa968", marginTop: "4px" }} />
                 <div>
@@ -133,10 +139,16 @@ function Checkout({ checkoutItems, onExecutePayment, onViewChange }) {
           <div style={{ marginBottom: "1.5rem", maxHeight: "180px", overflowY: "auto" }}>
             {checkoutItems.map((item) => (
               <div key={item.id} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 0", borderBottom: "1px solid #f1f5f9" }}>
-                <img src={item.poster} alt={item.title} style={{ width: "40px", height: "40px", objectFit: "cover", borderRadius: "8px" }} />
+                {/* 🔑 FIX PROPERTI MYSQL: Mengubah item.poster & item.title menjadi data MySQL riil */}
+                <img 
+                  src={`http://localhost:3000/uploads/${item.image}`} 
+                  alt={item.name} 
+                  style={{ width: "40px", height: "40px", objectFit: "contain", borderRadius: "8px", backgroundColor: "#f8fafc", border: "1px solid #e2e8f0" }} 
+                  onError={(e) => { e.target.src = 'https://via.placeholder.com/40?text=Obat'; }}
+                />
                 <div style={{ flexGrow: 1 }}>
-                  <h4 style={{ fontSize: "0.9rem", fontWeight: "700", color: "#1e293b" }}>{item.title}</h4>
-                  <span style={{ fontSize: "0.8rem", color: "#64748b" }}>{item.quantity} Strip</span>
+                  <h4 style={{ fontSize: "0.9rem", fontWeight: "700", color: "#1e293b" }}>{item.name}</h4>
+                  <span style={{ fontSize: "0.8rem", color: "#64748b" }}>{item.quantity} Qty</span>
                 </div>
                 <strong style={{ fontSize: "0.95rem", color: "#1e293b" }}>
                   Rp {(item.price * item.quantity).toLocaleString("id-ID")}
