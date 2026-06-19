@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Routes, Route } from "react-router-dom"; 
+import { Routes, Route, Navigate } from "react-router-dom"; 
 
 // 🔑 IMPORT LANGSUNG KOMPONEN INDEPENDEN:
 import Navbar from "./components/Navbar/Navbar"; 
@@ -78,7 +78,7 @@ function App() {
   };
 
   const totalItemsCount = cart.reduce((sum, item) => sum + item.quantity, 0);
-
+  console.log("currentUser =", currentUser);
   return (
     // 🔑 KUNCI FIX FONT: Kita kunci font global di div utama agar semuanya kembali modern tanpa kaki!
     <div style={{ 
@@ -121,8 +121,7 @@ function App() {
           {/* Jalur URL Autentikasi User & Dashboard */}
           <Route path="/login" element={<Login onLoginSuccess={setCurrentUser} />} />
           <Route path="/register" element={<Register />} />
-          <Route path="/dashboard" element={<Dashboard currentUser={currentUser} onUpdateProfile={setCurrentUser} />} />
-        </Routes>
+          <Route path="/dashboard" element={ currentUser ? (<Dashboard currentUser={currentUser} onUpdateProfile={setCurrentUser} /> ) : ( <Navigate to="/login" replace /> ) } /> </Routes>
       </main>
 
       {/* Footer otomatis di paling bawah */}
