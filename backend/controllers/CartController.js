@@ -1,71 +1,63 @@
-// Di dalam file backend/controllers/CartController.js
-const Cart = require("../models/Cart");
-const { sendError } = require("../utils/errorHandler");
+const Cart = require("../models/Cart"); //
+const { sendError } = require("../utils/errorHandler"); // 🔑 FIX: Import helper yang benar
 
-class CartController {
-  // CREATE (Tambah ke Keranjang)
-  add(req, res) {
+const CartController = {
+  // 1. Menambahkan item obat ke dalam keranjang belanja database
+  add: (req, res) => {
     const { cart_id, medicine_id, quantity } = req.body;
 
-    // VALIDASI: Cek apakah input kosong atau quantity minus
-    if (!cart_id || !medicine_id || !quantity) {
-      return errorHandler(res, "Data tidak lengkap!", 400);
-    }
-    if (quantity < 1) {
-      return errorHandler(res, "Jumlah barang minimal 1", 400);
+    if (!cart_id || !medicine_id || !quantity || quantity < 1) {
+      return sendError(res, new Error("Data input tidak lengkap atau kuantitas tidak valid."), 400, "Gagal menambahkan ke keranjang."); //
     }
 
-    Cart.addItem({ cart_id, medicine_id, quantity }, (err, results) => {
-      if (err) return errorHandler(res, err, 500, "Gagal tambah ke keranjang");
-      res.status(201).json({ success: true, message: "Berhasil masuk keranjang" });
+    Cart.addItem({ cart_id, medicine_id, quantity }, (err, result) => {
+      if (err) {
+        return sendError(res, err, 500, "Gagal menyimpan item ke database."); //
+      }
+      res.json({ success: true, message: "Item berhasil dimasukkan ke keranjang database.", insertId: result.insertId });
     });
-  }
+  },
 
-  // UPDATE (Ubah Quantity)
-  update(req, res) {
-    const { id } = req.params;
+  // 2. TARGET ALAM: Memperbarui jumlah kuantitas obat di database (PUT /api/cart/:id)
+  update: (req, res) => {
+    const { id } = req.params; // Ini adalah id dari cart_items
     const { quantity } = req.body;
 
-    // VALIDASI: Cek input
     if (!quantity || quantity < 1) {
-      return errorHandler(res, "Jumlah tidak valid", 400);
+      return sendError(res, new Error("Kuantitas harus bernilai minimal 1."), 400, "Gagal memperbarui kuantitas."); //
     }
 
     Cart.updateQuantity(id, quantity, (err, result) => {
-      if (err) return errorHandler(res, err, 500, "Gagal update keranjang");
-      
-      // ERROR HANDLING: Jika ID cart_item tidak ditemukan
-      if (result.affectedRows === 0) {
-        return errorHandler(res, "Item keranjang tidak ditemukan", 404);
+      if (err) {
+        return sendError(res, err, 500, "Gagal memperbarui kuantitas di database."); //
       }
-
-      res.json({ success: true, message: "Jumlah barang berhasil diubah" });
+      res.json({ success: true, message: "Kuantitas keranjang berhasil diperbarui di MySQL." });
     });
-  }
+  },
 
-  // DELETE (INI YANG TADI ERROR: Menghubungkan ke Model deleteItem)
-  delete(req, res) {
-    const { id } = req.params;
-    Cart.deleteItem(id, (err, result) => {
-      if (err) return sendError(res, err, 500, "Gagal hapus keranjang");
-      if (result.affectedRows === 0) return sendError(res, "Item tidak ditemukan", 404);
-      
-      res.json({
-        success: true,
-        message: "Barang berhasil dihapus dari keranjang",
-      });
-    });
-  }
-
-  // GET (Lihat Keranjang)
-  show(req, res) {
+  // 3. Menampilkan isi keranjang belanja milik user tertentu
+  show: (req, res) => {
     const { userId } = req.params;
 
     Cart.getByUser(userId, (err, results) => {
-      if (err) return errorHandler(res, err, 500);
+      if (err) {
+        return sendError(res, err, 500, "Gagal mengambil data keranjang dari database."); //
+      }
       res.json({ success: true, data: results });
     });
-  }
-}
+  },
 
-module.exports = new CartController();
+  // 4. TARGET ALAM: Menghapus satu baris item obat dari keranjang database (DELETE /api/cart/:id)
+  delete: (req, res) => {
+    const { id } = req.params; // Ini adalah id dari cart_items
+
+    Cart.deleteItem(id, (err, result) => {
+      if (err) {
+        return sendError(res, err, 500, "Gagal menghapus item dari database."); //
+      }
+      res.json({ success: true, message: "Item berhasil dihapus dari keranjang database MySQL." });
+    });
+  }
+};
+
+module.exports = CartController;
