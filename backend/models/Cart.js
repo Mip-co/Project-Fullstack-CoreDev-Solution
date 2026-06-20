@@ -20,10 +20,10 @@ class Cart {
     db.query(sql, [id], callback);
   }
 
-  // 4. Ambil isi keranjang (Kueri buatan Alam)
+  // 4. Ambil isi keranjang (Kueri buatan Alam - FIXED & SIAP PAKAI FRONTEND)
   static getByUser(userId, callback) {
     const sql = `
-      SELECT ci.id, m.name, m.price, ci.quantity 
+      SELECT ci.id, m.id AS medicine_id, m.name, m.price, m.image, m.description, ci.quantity 
       FROM cart_items ci 
       JOIN medicines m ON ci.medicine_id = m.id 
       JOIN carts c ON ci.cart_id = c.id 

@@ -1,5 +1,19 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
 
+/* 🔐 Mencegah semua elemen meluber keluar dari batas layar */
+html, body {
+  max-width: 100%;
+  overflow-x: hidden;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* Memastikan semua elemen menghitung padding di dalam lebar asli, bukan menambah lebar */
+*, *:before, *:after {
+  box-sizing: inherit;
+}
+
 * {
   margin: 0;
   padding: 0;
