@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";//  Kodingan yang benar dan presisi:
-import { getMedicines } from "../utils/api/medicineApi";
-import MedicineCard from "../components/MedicineCard/MedicineCard";
-import Hero from "../components/Hero/Hero";
+import { useState, useEffect } from "react";
+import { getMedicines } from "../utils/api/medicineApi"; //
+import MedicineCard from "../components/MedicineCard/MedicineCard"; //
+import Hero from "../components/Hero/Hero"; //
 
 function Home({ onAddToCart }) {
   // State manajemen data sesuai materi halaman 43
@@ -27,7 +27,7 @@ function Home({ onAddToCart }) {
         
         const response = await getMedicines(); // Menembak API Express backend
         // Sesuaikan target array-nya (misal response.data atau response.data.data tergantung struktur Express-mu)
-        setMedicines(response.data.data || response.data); 
+        setMedicines(response.data?.data || response.data || response); 
       } catch (err) {
         setError(err.message || "Gagal memuat data dari server backend.");
       } finally {
@@ -38,13 +38,17 @@ function Home({ onAddToCart }) {
     fetchMedicineData();
   }, []); // Array kosong memastikan kueri hanya ditembak SEKALI saat halaman dimuat (Halaman 20)
 
-  // Logika Filter Kategori (Membaca kolom categoryName hasil kueri tabel database asli kamu)
+  // 🔑 LOGIKA REVISI INTEGRASI: Membaca toleransi kolom category_name / categoryName dari tabel database MySQL asli kamu
   const filteredObat = selectedCategory === "Semua" 
     ? medicines 
-    : medicines.filter((obat) => obat.categoryName === selectedCategory);
+    : medicines.filter((obat) => {
+        const namaKategori = obat.category_name || obat.categoryName || "";
+        return namaKategori.toLowerCase() === selectedCategory.toLowerCase();
+      });
 
   return (
     <div>
+      {/* Komponen Hero aseli bawaan kelompok tetap di paling atas */}
       <Hero />
 
       <div style={{ maxWidth: "1200px", margin: "4rem auto 2rem auto", padding: "0 2rem" }}>
