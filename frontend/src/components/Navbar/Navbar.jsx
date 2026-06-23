@@ -29,7 +29,6 @@ function Navbar({ cartCount, currentUser }) {
           >
             Katalog
           </Link>
-          
           {/* Tombol Keranjang (Sudah Sinkron Router 🚀) */}
           <Link 
             to="/cart" 
