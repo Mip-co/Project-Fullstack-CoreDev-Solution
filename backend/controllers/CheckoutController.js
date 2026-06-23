@@ -5,41 +5,52 @@ const { sendError } = require("../utils/errorHandler");
 class CheckoutController {
   // PROSES CHECKOUT
   async store(req, res) {
-    const { user_id } = req.body;
+    const userId = req.user?.id; // Gunakan user ID yang sudah divalidasi dari token JWT
+    const { nama, telepon, alamat, catatan, shippingMethod, total_price, items } = req.body;
 
-    if (!user_id) return sendError(res, "User ID wajib diisi!", 400);
+    if (!userId) return sendError(res, "Token user tidak valid atau tidak ditemukan.", 401);
+    if (!Array.isArray(items) || items.length === 0) {
+      return sendError(res, "Tidak ada item checkout yang valid.", 400);
+    }
 
-    // 1. Ambil isi keranjang user
-    Cart.getByUser(user_id, (err, cartItems) => {
+    // Validasi sederhana input alamat
+    if (!nama || !telepon || !alamat) {
+      return sendError(res, "Nama, telepon, dan alamat wajib diisi.", 400);
+    }
+
+    const orderTotal = Number(total_price) || items.reduce((sum, item) => sum + (Number(item.price) * Number(item.quantity) || 0), 0);
+
+    // 1. Buat pesanan baru di tabel orders
+    Checkout.createOrder({ user_id: userId, total_price: orderTotal }, (err, result) => {
       if (err) return sendError(res, err, 500);
-      if (cartItems.length === 0) return sendError(res, "Keranjang kamu masih kosong!", 400);
+      const orderId = result.insertId;
 
-      // 2. Hitung total harga
-      const total_price = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      // 2. Simpan semua order item yang dikirim dari frontend
+      let savedCount = 0;
+      let responded = false;
 
-      // 3. Buat pesanan baru di tabel orders
-      Checkout.createOrder({ user_id, total_price }, (err, result) => {
-        if (err) return sendError(res, err, 500);
-        const orderId = result.insertId;
+      items.forEach((item) => {
+        const medicineId = item.medicine_id || item.id;
+        const quantity = Number(item.quantity) || 1;
+        const price = Number(item.price) || 0;
 
-        // 4. Pindahkan item ke order_items & bersihkan keranjang
-        cartItems.forEach((item) => {
-          Checkout.createOrderItem({ 
-            order_id: orderId, 
-            medicine_id: item.medicine_id || item.id, // 🔑 AMAN: Mengambil ID Obat asli dari alias SQL kita
-            quantity: item.quantity, 
-            price: item.price 
-          }, (itemErr) => {
-            // 🔑 AMAN: Menghapus item keranjang memakai item.id bawaan Alam
-            if (!itemErr) Cart.deleteItem(item.id, () => {}); 
-          });
-        });
+        Checkout.createOrderItem({ order_id: orderId, medicine_id: medicineId, quantity, price }, (itemErr) => {
+          if (responded) return;
+          if (itemErr) {
+            responded = true;
+            return sendError(res, itemErr, 500);
+          }
 
-        res.status(201).json({
-          success: true,
-          message: "Checkout Berhasil!",
-          order_id: orderId,
-          total_bayar: total_price
+          savedCount += 1;
+          if (savedCount === items.length) {
+            responded = true;
+            return res.status(201).json({
+              success: true,
+              message: "Checkout berhasil diproses.",
+              order_id: orderId,
+              total_bayar: orderTotal
+            });
+          }
         });
       });
     });

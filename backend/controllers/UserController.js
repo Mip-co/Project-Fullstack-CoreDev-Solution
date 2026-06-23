@@ -1,121 +1,124 @@
-const User = require("../models/User");
-const { sendError } = require("../utils/errorHandler"); // ✅ Kita pakai sendError
-const jwt = require("jsonwebtoken");
-const bcrypt = require("bcryptjs");
+const User = require("../models/User"); //
+const bcrypt = require("bcryptjs"); //
+const jwt = require("jsonwebtoken"); //
+const { sendError } = require("../utils/errorHandler"); // Menggunakan helper error standar kelompok
 
-class UserController {
-
-  // ✅ REGISTER (pakai bcrypt)
-  async register(req, res) {
+const UserController = {
+  // 1. HANDLER REGISTER USER BARU
+  register: (req, res) => {
     const { name, email, password } = req.body;
 
     if (!name || !email || !password) {
-      return sendError(res, "Nama, Email, dan Password wajib diisi!", 400);
+      return sendError(res, new Error("Semua field wajib diisi!"), 400, "Gagal melakukan registrasi.");
     }
 
-    try {
-      // 🔥 HASH PASSWORD
-      const hashedPassword = await bcrypt.hash(password, 10);
+    // Lakukan enkripsi password sebelum disimpan ke database MySQL
+    bcrypt.hash(password, 10, (err, hashedPassword) => {
+      if (err) {
+        return sendError(res, err, 500, "Gagal memproses enkripsi data.");
+      }
 
-      const data = {
-        ...req.body,
-        password: hashedPassword,
-        role: "user" // default role
-      };
-
-      User.create(data, (err, result) => {
-        if (err) return sendError(res, err, 500);
-        res.json({
+      User.create({ name, email, password: hashedPassword }, (err, userId) => {
+        if (err) {
+          return sendError(res, err, 500, "Email sudah terdaftar atau terjadi kesalahan database.");
+        }
+        res.status(21).json({
           success: true,
-          message: "Register berhasil",
-          userId: result.insertId
+          message: "Akun berhasil dibuat di database MySQL.",
+          userId
         });
       });
+    });
+  },
 
-    } catch (err) {
-      return sendError(res, err, 500);
-    }
-  }
-
-  // ✅ LOGIN (pakai bcrypt + JWT)
-  login(req, res) {
+  // 2. 🔑 FIX BUG LOGIN: Handler Login Anti-Crash
+  login: (req, res) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      return sendError(res, "Email dan Password wajib diisi!", 400);
+      return sendError(res, new Error("Email dan password wajib diisi!"), 400, "Gagal masuk ke sistem.");
     }
 
-    User.findByEmail(email, async (err, result) => {
-      if (err) return sendError(res, err, 500);
-
-      if (result.length === 0) {
-        return sendError(res, "User tidak ditemukan", 404);
+    // Ambil data user dari database berdasarkan email input
+    User.findByEmail(email, (err, user) => {
+      if (err) {
+        return sendError(res, err, 500, "Terjadi kesalahan internal pada database server.");
       }
 
-      const user = result[0];
+      // 🔥 SOLUSI UTAMA: Validasi jika user tidak ditemukan (undefined / null) agar tidak crash!
+      if (!user) {
+        return sendError(res, new Error("Akun tidak terdaftar"), 401, "Email atau password yang Anda masukkan salah.");
+      }
 
-      try {
-        // 🔥 BANDINGKAN HASH PASSWORD
-        const isMatch = await bcrypt.compare(password, user.password);
-
-        if (!isMatch) {
-          return sendError(res, "Password salah", 400);
+      // Jika user ditemukan, aman untuk membaca user.password tanpa memicu TypeError
+      bcrypt.compare(password, user.password, (err, isMatch) => {
+        if (err) {
+          return sendError(res, err, 500, "Gagal melakukan komparasi enkripsi.");
         }
 
-        // 🔐 JWT
+        if (!isMatch) {
+          return sendError(res, new Error("Password tidak cocok"), 401, "Email atau password yang Anda masukkan salah.");
+        }
+
+        // Jika password cocok, buat token autentikasi JWT
         const token = jwt.sign(
-          {
-            id: user.id,
-            email: user.email,
-            role: user.role
-          },
+          { id: user.id, email: user.email, role: user.role },
           process.env.JWT_SECRET,
           { expiresIn: "1d" }
         );
 
+        // Kirimkan token dan data user minimal ke frontend-nya Silva
         res.json({
           success: true,
-          message: "Login berhasil",
-          token
+          message: "Autentikasi berhasil, selamat datang kembali!",
+          token,
+          user: {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            phone: user.phone,
+            address: user.address,
+            role: user.role,
+            profile_picture: user.profile_picture
+          }
         });
-      } catch (err) {
-        return sendError(res, err, 500);
+      });
+    });
+  },
+
+  // 3. MENAMPILKAN DETAIL USER DATA BERDASARKAN ID
+  show: (req, res) => {
+    const { id } = req.params;
+
+    User.findById(id, (err, user) => {
+      if (err) {
+        return sendError(res, err, 500, "Gagal mengambil data pengguna.");
       }
-    });
-  }
-
-  // ✅ DETAIL USER
-  show(req, res) {
-    const { id } = req.params;
-    User.findById(id, (err, result) => {
-      if (err) return sendError(res, err, 500);
-      if (!result || result.length === 0) return sendError(res, "User tidak ditemukan", 404);
-      
+      if (!user) {
+        return sendError(res, new Error("User tidak ditemukan"), 404, "Data pengguna tidak tercatat.");
+      }
       res.json({
         success: true,
-        data: result[0]
+        data: user
+      });
+    });
+  },
+
+  // 4. MEMPERBARUI INFORMASI DATA PROFIL USER
+  update: (req, res) => {
+    const { id } = req.params;
+    const { name, phone, address } = req.body;
+
+    User.update(id, { name, phone, address }, (err, result) => {
+      if (err) {
+        return sendError(res, err, 500, "Gagal memperbarui profil di database.");
+      }
+      res.json({
+        success: true,
+        message: "Informasi profil sukses diperbarui di database MySQL."
       });
     });
   }
+};
 
-  // ✅ UPDATE USER
-  update(req, res) {
-    const { id } = req.params;
-
-    // Jika ada update foto profil dari Multer
-    const data = {
-      ...req.body,
-      ...(req.file && { profile_picture: req.file.filename })
-    };
-
-    User.update(id, data, (err, result) => {
-      if (err) return sendError(res, err, 500);
-      res.json({
-        success: true,
-        message: "Update berhasil"
-      });
-    });
-  }
-}
-
-module.exports = new UserController();
+module.exports = UserController;
