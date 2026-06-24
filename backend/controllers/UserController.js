@@ -22,7 +22,9 @@ const UserController = {
         if (err) {
           return sendError(res, err, 500, "Email sudah terdaftar atau terjadi kesalahan database.");
         }
-        res.status(21).json({
+        
+        // 🔑 FIX: Ubah angka status 21 menjadi 201 (HTTP Status Created)
+        return res.status(201).json({
           success: true,
           message: "Akun berhasil dibuat di database MySQL.",
           userId

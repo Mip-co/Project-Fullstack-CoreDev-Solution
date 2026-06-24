@@ -1,7 +1,13 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom"; // 🔑 ISI SPRINT 11: Menggunakan Link & useLocation
+// 🔑 IMPORT CUSTOM HOOK UTAMA SPRINT 13 KELOMPOK
+import { useAuth } from "../../context/AuthContext";
 
-function Navbar({ cartCount, currentUser }) {
+// 🗑️ PEMBERSIHAN PROP: Hapus properti 'currentUser' untuk menuntaskan misi anti prop-drilling
+function Navbar({ cartCount }) {
+  // 🔑 Ambil status token dan data user yang login langsung dari Custom Hook useAuth()
+  const { token, user } = useAuth();
+  
   // Trik opsional biar link menu otomatis berwarna hijau aktif sesuai URL browser saat ini
   const location = useLocation();
 
@@ -11,7 +17,7 @@ function Navbar({ cartCount, currentUser }) {
         
         {/* Brand Logo (Sudah Sinkron Router 🚀) */}
         <Link to="/" style={{ fontSize: "1.5rem", fontWeight: "800", color: "#0fa968", cursor: "pointer", textDecoration: "none" }}>
-          ApotekApp
+          ApotekNow
         </Link>
 
         {/* Menu & Tombol Aksi */}
@@ -42,8 +48,8 @@ function Navbar({ cartCount, currentUser }) {
             )}
           </Link>
 
-          {/* 🔄 KONDISIONAL TOMBOL LOGIN / PROFILE AVATAR */}
-          {currentUser ? (
+          {/* 🔄 🔑 KONDISIONAL TOMBOL LOGIN / PROFILE AVATAR BERDASARKAN TOKEN CONTEXT GLOBAL */}
+          {token && user ? (
             /* Avatar Profile Dashboard (Sudah Sinkron Router 🚀) */
             <Link 
               to="/dashboard"
@@ -55,7 +61,7 @@ function Navbar({ cartCount, currentUser }) {
                 color: "#ffffff", 
                 display: "flex", 
                 alignItems: "center", 
-                justifyContent: "center", 
+                justify: "center", 
                 fontWeight: "700", 
                 cursor: "pointer",
                 boxShadow: "0 2px 4px rgba(15, 169, 104, 0.2)",
@@ -64,7 +70,7 @@ function Navbar({ cartCount, currentUser }) {
               }}
               title="Buka Dashboard Akun"
             >
-              {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : "U"}
+              {user.name ? user.name.charAt(0).toUpperCase() : "U"}
             </Link>
           ) : (
             /* Tombol Login (Sudah Sinkron Router 🚀) */
