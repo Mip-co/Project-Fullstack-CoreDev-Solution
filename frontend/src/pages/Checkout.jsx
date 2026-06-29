@@ -39,8 +39,9 @@ function Checkout({ checkoutItems, onExecutePayment }) {
 
     setLoading(true);
     try {
-      const token = localStorage.getItem("token");
-      const dataPayload = {
+      // 🧼 100% CLEAN ARCHITECTURE: Variabel token lama dan header Authorization manual dihapus total!
+      // Karena string Bearer JWT sudah disisipkan secara otomatis oleh interceptor di http.js
+      const dataPayload = {D
         nama,
         telepon,
         alamat,
@@ -50,11 +51,8 @@ function Checkout({ checkoutItems, onExecutePayment }) {
         items: checkoutItems,
       };
 
-      const response = await http.post("/checkout", dataPayload, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      // Tembak langsung endpoint API internal proxy tanpa ribet mikirin payload header
+      const response = await http.post("/checkout", dataPayload);
 
       if (response.data) {
         if (onExecutePayment) onExecutePayment(dataPayload);
@@ -188,7 +186,7 @@ function Checkout({ checkoutItems, onExecutePayment }) {
               <span>Rp {totalAkhirTagihan.toLocaleString("id-ID")}</span>
             </div>
           </div>
-          <p style={{ margin: 0, color: "#64748b", fontSize: "13px" }}>*Pesanan obat keras wajib menunjukkan resep asli saat kurir sampai.</p>
+          <p style={{ margin: 0, color: "#64748b", fontSize: "13px", marginTop: "1rem" }}>*Pesanan obat keras wajib menunjukkan resep asli saat kurir sampai.</p>
         </aside>
       </div>
     </div>
