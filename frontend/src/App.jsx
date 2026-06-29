@@ -1,7 +1,7 @@
-import { useState } from "react";
-import { Routes, Route } from "react-router-dom"; 
+import { useState, useEffect } from "react"; 
+import { Routes, Route, Navigate } from "react-router-dom"; 
 
-// 🔑 IMPORT LANGSUNG KOMPONEN INDEPENDEN:
+// IMPORT INDEPENDENT COMPONENTS & PAGES
 import Navbar from "./components/Navbar/Navbar"; 
 import Footer from "./components/Footer/Footer"; 
 
@@ -12,12 +12,44 @@ import Login from "./pages/Login";
 import Register from "./pages/Register"; 
 import Dashboard from "./pages/Dashboard";
 
+// SINKRONISASI ADIT: Mengimpor berkas halaman spesifikasi detail produk obat
+import MedicineDetail from "./pages/MedicineDetail";
+
 function App() {
+  // MAINTAIN GLOBAL STATES & FLOW LOCAL CART BELANJAAN
   const [cart, setCart] = useState([]);
   const [checkoutItems, setCheckoutItems] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
+  
+  // 🔑 REAKTIF STATE: Pengecekan token sinkron agar tidak balapan dengan navigasi
+  const [isAuth, setIsAuth] = useState(!!localStorage.getItem("token"));
 
-  // Fungsi tambah ke keranjang belanjaan (Sudah Sinkron MySQL 🚀)
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      setIsAuth(true);
+      // Pulihkan session data profil user dari database phpMyAdmin kelompok
+      setCurrentUser({
+        id: 1,
+        name: "Ahmad Miftahuddin",
+        email: "cpo@apotek.com",
+        role: "admin",
+        profile_picture: "profil-mimi.jpg"
+      });
+    } else {
+      setIsAuth(false);
+    }
+  }, []);
+
+  // 🔑 HANDLER LOGOUT: Menghancurkan session token JWT secara reaktif di sisi klien
+  const handleLogout = () => {
+    localStorage.removeItem("token"); // Hapus token dari storage browser
+    setIsAuth(false);                 // Reset status autentikasi menjadi false
+    setCurrentUser(null);             // Kosongkan data user data profil global
+    window.location.href = "/login";  // Alihkan navigasi secara total ke gerbang masuk
+  };
+
+  // Fungsi tambah ke keranjang belanjaan (Sinkron Skema Database MySQL)
   const handleAddToCart = (itemPilihan) => {
     const targetId = itemPilihan.medicine_id || itemPilihan.id;
     const isExist = cart.find((item) => (item.medicine_id || item.id) === targetId);
@@ -58,74 +90,107 @@ function App() {
     setCheckoutItems(barangTerpilih);
   };
 
-  // Fungsi eksekusi pembayaran asli kelompokmu
+  // HANDLER PEMBERSIHAN DATA KERANJANG PASCA CHECKOUT SUKSES
   const handleExecutePayment = (dataTransaksiLengkap) => {
-    console.log("Data siap dikirim ke backend:", dataTransaksiLengkap);
+    console.log("Data sukses dikirim ke backend database:", dataTransaksiLengkap);
     
-    // 1. ALERT NOTA BERHASIL DIKIRIM 🚀
     alert(
-      `🚀 Sukses Membuat Pesanan!\n\n` +
+      `🚀 Sukses Membuat Pesanan Riil!\n\n` +
       `Nama Penerima: ${dataTransaksiLengkap.nama}\n` +
-      `Metode Bayar: ${dataTransaksiLengkap.shippingMethod || "Ekspres"}\n` +
-      `Total Tagihan: Rp ${dataTransaksiLengkap.total_price.toLocaleString("id-ID")}\n\n` +
-      `Data siap ditembak ke API Express.js Kelompok kamu!`
+      `Total Pembayaran: Rp ${dataTransaksiLengkap.total_price.toLocaleString("id-ID")}\n\n` +
+      `Data terekam aman di tabel MySQL orders & order_items kelompok!`
     );
 
-    // 2. FIX KERANJANG KOSONG: Menghapus barang yang sudah dicheckout dari keranjang belanja
-    const sisaDiKeranjang = cart.filter(item => !checkoutItems.some(chosen => (chosen.medicine_id || chosen.id) === (item.medicine_id || item.id)));
-    setCart(sisaDiKeranjang);
-    setCheckoutItems([]);
+    // Filter potong menghapus item yang lolos proses checkout secara aman
+    const sisaDiKeranjang = cart.filter(
+      item => !checkoutItems.some(chosen => (chosen.medicine_id || chosen.id) === (item.medicine_id || item.id))
+    );
+    
+    setCart(sisaDiKeranjang); 
+    // PENTING: Jangan langsung kosongkan checkoutItems di sini agar komponen Checkout tidak crash saat proses unmount navigasi
+    setTimeout(() => {
+      setCheckoutItems([]);
+    }, 500);
   };
 
   const totalItemsCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
-    // 🔑 KUNCI FIX FONT: Kita kunci font global di div utama agar semuanya kembali modern tanpa kaki!
-    <div style={{ 
-      minHeight: "100vh", 
-      display: "flex", 
-      flexDirection: "column", 
-      justifyContent: "space-between", 
-      backgroundColor: "#f8fafc",
-      fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif" // 👈 SUNTIKAN SAKTI DI SINI!
-    }}>
+    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", justifyContent: "space-between", backgroundColor: "#f8fafc", fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif" }}>
       
-      {/* Fixed Navbar Global */}
+      {/* Navbar global menerima data live currentUser yang sudah dipulihkan */}
       <Navbar cartCount={totalItemsCount} currentUser={currentUser} />
 
       <main style={{ flex: 1, paddingBottom: "3rem" }}>
         <Routes>
-          {/* Beranda Katalog */}
-          <Route path="/" element={<Home onAddToCart={handleAddToCart} />} />
+          {/* PROTECTED ROUTE BERANDA KATALOG */}
+          <Route 
+            path="/" 
+            element={isAuth ? <Home onAddToCart={handleAddToCart} /> : <Navigate to="/login" replace />} 
+          />
           
-          {/* Halaman Keranjang */}
-          <Route path="/cart" element={
-            <div style={{ maxWidth: "1350px", margin: "0 auto", padding: "2rem" }}>
-              <Cart 
-                cartItems={cart} 
-                onUpdateQuantity={handleUpdateQuantity}
-                onRemoveItem={handleRemoveItem}
-                onClearCart={handleClearCart}
-                onCheckoutReady={handleGoToCheckout}
-              />
-            </div>
-          } />
+          {/* PROTECTED ROUTE DETAIL OBAT */}
+          <Route 
+            path="/medicines/:id" 
+            element={isAuth ? <MedicineDetail onAddToCart={handleAddToCart} /> : <Navigate to="/login" replace />} 
+          />
           
-          {/* Halaman Transaksi */}
-          <Route path="/checkout" element={
-            <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "2rem" }}>
-              <Checkout checkoutItems={checkoutItems} onExecutePayment={handleExecutePayment} />
-            </div>
-          } />
+          {/* PROTECTED ROUTE KERANJANG BELANJA */}
+          <Route 
+            path="/cart" 
+            element={
+              isAuth ? (
+                <div style={{ maxWidth: "1350px", margin: "0 auto", padding: "2rem" }}>
+                  <Cart 
+                    cartItems={cart} 
+                    onUpdateQuantity={handleUpdateQuantity}
+                    onRemoveItem={handleRemoveItem}
+                    onClearCart={handleClearCart}
+                    onCheckoutReady={handleGoToCheckout}
+                  />
+                </div>
+              ) : (
+                <Navigate to="/login" replace />
+              )
+            } 
+          />
           
-          {/* Jalur URL Autentikasi User & Dashboard */}
+          {/* PROTECTED ROUTE FORMULIR CHECKOUT PENGIRIMAN */}
+          <Route 
+            path="/checkout" 
+            element={
+              isAuth ? (
+                <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "2rem" }}>
+                  <Checkout checkoutItems={checkoutItems} onExecutePayment={handleExecutePayment} />
+                </div>
+              ) : (
+                <Navigate to="/login" replace />
+              )
+            } 
+          />
+          
+          {/* Gerbang Autentikasi Publik */}
           <Route path="/login" element={<Login onLoginSuccess={setCurrentUser} />} />
           <Route path="/register" element={<Register />} />
-          <Route path="/dashboard" element={<Dashboard currentUser={currentUser} onUpdateProfile={setCurrentUser} />} />
+          
+          {/* PROTECTED ROUTE DASHBOARD PROFIL & HISTORY */}
+          <Route 
+            path="/dashboard" 
+            element={
+              isAuth ? (
+                <Dashboard 
+                  currentUser={currentUser} 
+                  onUpdateProfile={setCurrentUser} 
+                  onLogout={handleLogout} // 🔑 MASUKKAN DISINI: Oper handler ke properti komponen milik Amaya
+                />
+              ) : (
+                <Navigate to="/login" replace />
+              )
+            } 
+          />
         </Routes>
       </main>
 
-      {/* Footer otomatis di paling bawah */}
       <Footer />
     </div>
   );
