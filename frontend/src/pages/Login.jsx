@@ -1,9 +1,13 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { loginUser } from "../utils/api/authApi"; //
+import { loginUser } from "../utils/api/authApi"; 
+// 🔑 IMPORT CUSTOM HOOK UTAMA SPRINT 13 KELOMPOK
+import { useAuth } from "../context/AuthContext";
 
-function Login({ onLoginSuccess }) {
+function Login() {
   const navigate = useNavigate();
+  // 🔑 Ambil fungsi login global dari Custom Hook useAuth()
+  const { login } = useAuth();
   
   // STATE MANAGEMENT
   const [email, setEmail] = useState("");
@@ -21,7 +25,7 @@ function Login({ onLoginSuccess }) {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    e.preventDefault(); // 🔑 FIXED: Mengunci browser agar tidak reload otomatis saat form dikirim!
     setApiError("");
     if (!validateForm()) return;
 
@@ -29,21 +33,17 @@ function Login({ onLoginSuccess }) {
     try {
       const data = await loginUser(email, password);
       if (data && data.token) {
-        // 1. Amankan JWT token ke localStorage kelompok
-        localStorage.setItem("token", data.token); 
+        // 1. PUSATKAN KE CONTEXT: Otomatis set token ke localStorage & restore data user secara reaktif
+        login(data.token); 
         
-        // 2. Kirim data user login ke state utama App.jsx
-        if (onLoginSuccess) {
-          onLoginSuccess(data.user || { email }); 
-        }
+        alert("Login Berhasil!");
         
-        // 3. 🔑 FIX STRATEGI 2: Melempar navigasi ke akar '/' sekaligus memicu refresh state token di App.jsx
+        // 2. NAVIGASI SPA MURNI: Pindah ke katalog tanpa refresh halaman manual
         navigate("/");
-        window.location.reload(); 
       }
     } catch (error) {
       const msg = error.response?.data?.message || "Login gagal, silakan periksa kembali akun Anda.";
-      setApiError(msg); //
+      setApiError(msg); // 🔴 State eror sekarang akan bertahan kokoh di layar dan tidak hilang sendiri!
     } finally {
       setLoading(false);
     }
