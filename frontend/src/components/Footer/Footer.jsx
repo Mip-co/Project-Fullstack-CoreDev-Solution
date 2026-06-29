@@ -1,4 +1,6 @@
 import React from 'react';
+// 🔑 FIX: Impor komponen Link dari react-router-dom agar navigasi mulus tanpa reload
+import { Link } from 'react-router-dom';
 
 function Footer() {
   return (
@@ -21,7 +23,7 @@ function Footer() {
       }}>
         {/* Kolom Kiri: Brand & Deskripsi */}
         <div style={{ flex: "1 1 300px" }}>
-          <h3 style={{ fontSize: "1.5rem", fontWeight: "800", color: "#0fa968", marginBottom: "1rem", margin_top: 0 }}>
+          <h3 style={{ fontSize: "1.5rem", fontWeight: "800", color: "#0fa968", marginBottom: "1rem", marginTop: 0 }}>
             Apotek<span style={{ color: "#ffffff" }}>Now</span>
           </h3>
           <p style={{ fontSize: "0.9rem", lineHeight: "1.6", color: "#94a3b8" }}>
@@ -31,19 +33,32 @@ function Footer() {
 
         {/* Kolom Tengah: Tautan Cepat */}
         <div style={{ flex: "1 1 200px" }}>
-          <h4 style={{ color: "#ffffff", fontWeight: "700", marginBottom: "1.2rem", margin_top: 0, fontSize: "1rem" }}>
+          <h4 style={{ color: "#ffffff", fontWeight: "700", marginBottom: "1.2rem", marginTop: 0, fontSize: "1rem" }}>
             Jelajahi
           </h4>
           <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "10px", fontSize: "0.9rem" }}>
-            <li><a href="#katalog" style={{ color: "#94a3b8", textDecoration: "none", transition: "color 0.2s" }}>Katalog Obat</a></li>
-            <li><a href="#keranjang" style={{ color: "#94a3b8", textDecoration: "none" }}>Keranjang Belanja</a></li>
-            <li><a href="#dashboard" style={{ color: "#94a3b8", textDecoration: "none" }}>Riwayat Transaksi</a></li>
+            {/* 🔑 FIX: Mengubah href menjadi Link to sesuai rute di App.jsx */}
+            <li>
+              <Link to="/" style={{ color: "#94a3b8", textDecoration: "none", transition: "color 0.2s" }}>
+                Katalog Obat
+              </Link>
+            </li>
+            <li>
+              <Link to="/cart" style={{ color: "#94a3b8", textDecoration: "none", transition: "color 0.2s" }}>
+                Keranjang Belanja
+              </Link>
+            </li>
+            <li>
+              <Link to="/dashboard" style={{ color: "#94a3b8", textDecoration: "none", transition: "color 0.2s" }}>
+                Riwayat Transaksi
+              </Link>
+            </li>
           </ul>
         </div>
 
         {/* Kolom Kanan: Info Kontak & Jam Ops */}
         <div style={{ flex: "1 1 250px" }}>
-          <h4 style={{ color: "#ffffff", fontWeight: "700", marginBottom: "1.2rem", margin_top: 0, fontSize: "1rem" }}>
+          <h4 style={{ color: "#ffffff", fontWeight: "700", marginBottom: "1.2rem", marginTop: 0, fontSize: "1rem" }}>
             Kontak & Bantuan
           </h4>
           <p style={{ fontSize: "0.9rem", margin: "0 0 10px 0" }}>📍 Depok, Indonesia</p>

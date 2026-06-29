@@ -1,8 +1,8 @@
-const History = require("../models/History"); // Model baru
+const History = require("../models/History");
 const { sendError } = require("../utils/errorHandler");
 
 class HistoryController {
-  // TAMPILKAN SEMUA RIWAYAT USER
+  // TAMPILKAN RIWAYAT ORDER MILIK SATU USER (untuk halaman history user biasa)
   index(req, res) {
     const { userId } = req.params;
 
@@ -15,7 +15,19 @@ class HistoryController {
     });
   }
 
-  // UPDATE STATUS (Misal oleh Admin atau setelah bayar)[cite: 1, 2]
+  // [FIX BARU] TAMPILKAN SEMUA ORDER DARI SELURUH USER (untuk Admin Dashboard)
+  // Dipanggil oleh route: GET /api/orders
+  indexAll(req, res) {
+    History.getAll((err, results) => {
+      if (err) return sendError(res, err, 500);
+      res.json({
+        success: true,
+        data: results
+      });
+    });
+  }
+
+  // UPDATE STATUS ORDER (oleh Admin)
   update(req, res) {
     const { id } = req.params;
     const { status } = req.body;

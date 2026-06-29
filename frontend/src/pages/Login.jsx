@@ -36,10 +36,32 @@ function Login() {
         // 1. PUSATKAN KE CONTEXT: Otomatis set token ke localStorage & restore data user secara reaktif
         login(data.token); 
         
+        // 2. 🔑 DETEKSI ROLE SECARA MANDIRI (DEKODE JWT BASE64)
+        let userRole = "user"; // Default fallback
+        try {
+          const base64Url = data.token.split('.')[1];
+          const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+          const jsonPayload = decodeURIComponent(
+            atob(base64)
+              .split('')
+              .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+              .join('')
+          );
+          const decoded = JSON.parse(jsonPayload);
+          userRole = decoded.role || "user";
+          console.log("Role terdeteksi saat login:", userRole);
+        } catch (jwtError) {
+          console.error("Gagal membaca role dari token:", jwtError);
+        }
+
         alert("Login Berhasil!");
         
-        // 2. NAVIGASI SPA MURNI: Pindah ke katalog tanpa refresh halaman manual
-        navigate("/");
+        // 3. NAVIGASI BIJAKSANA: Lempar ke rute yang sesuai dengan hak akses role database
+        if (userRole === "admin") {
+          navigate("/admin");
+        } else {
+          navigate("/");
+        }
       }
     } catch (error) {
       const msg = error.response?.data?.message || "Login gagal, silakan periksa kembali akun Anda.";

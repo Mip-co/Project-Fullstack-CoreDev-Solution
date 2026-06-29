@@ -1,7 +1,7 @@
-const User = require("../models/User"); //
-const bcrypt = require("bcryptjs"); //
-const jwt = require("jsonwebtoken"); //
-const { sendError } = require("../utils/errorHandler"); // Menggunakan helper error standar kelompok
+const User = require("../models/User");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+const { sendError } = require("../utils/errorHandler");
 
 const UserController = {
   // 1. HANDLER REGISTER USER BARU
@@ -12,7 +12,6 @@ const UserController = {
       return sendError(res, new Error("Semua field wajib diisi!"), 400, "Gagal melakukan registrasi.");
     }
 
-    // Lakukan enkripsi password sebelum disimpan ke database MySQL
     bcrypt.hash(password, 10, (err, hashedPassword) => {
       if (err) {
         return sendError(res, err, 500, "Gagal memproses enkripsi data.");
@@ -22,8 +21,7 @@ const UserController = {
         if (err) {
           return sendError(res, err, 500, "Email sudah terdaftar atau terjadi kesalahan database.");
         }
-        
-        // 🔑 FIX: Ubah angka status 21 menjadi 201 (HTTP Status Created)
+
         return res.status(201).json({
           success: true,
           message: "Akun berhasil dibuat di database MySQL.",
@@ -33,7 +31,7 @@ const UserController = {
     });
   },
 
-  // 2. 🔑 FIX BUG LOGIN: Handler Login Anti-Crash
+  // 2. HANDLER LOGIN
   login: (req, res) => {
     const { email, password } = req.body;
 
@@ -41,18 +39,15 @@ const UserController = {
       return sendError(res, new Error("Email dan password wajib diisi!"), 400, "Gagal masuk ke sistem.");
     }
 
-    // Ambil data user dari database berdasarkan email input
     User.findByEmail(email, (err, user) => {
       if (err) {
         return sendError(res, err, 500, "Terjadi kesalahan internal pada database server.");
       }
 
-      // 🔥 SOLUSI UTAMA: Validasi jika user tidak ditemukan (undefined / null) agar tidak crash!
       if (!user) {
         return sendError(res, new Error("Akun tidak terdaftar"), 401, "Email atau password yang Anda masukkan salah.");
       }
 
-      // Jika user ditemukan, aman untuk membaca user.password tanpa memicu TypeError
       bcrypt.compare(password, user.password, (err, isMatch) => {
         if (err) {
           return sendError(res, err, 500, "Gagal melakukan komparasi enkripsi.");
@@ -62,14 +57,15 @@ const UserController = {
           return sendError(res, new Error("Password tidak cocok"), 401, "Email atau password yang Anda masukkan salah.");
         }
 
-        // Jika password cocok, buat token autentikasi JWT
+        // [FIX #3] Tambahkan 'name' ke payload JWT agar AuthContext bisa membaca nama
+        // yang benar tanpa harus hit endpoint /profile lagi
         const token = jwt.sign(
-          { id: user.id, email: user.email, role: user.role },
+          { id: user.id, name: user.name, email: user.email, role: user.role },
+          //                ↑ 'name' sekarang ikut disertakan di payload token
           process.env.JWT_SECRET,
           { expiresIn: "1d" }
         );
 
-        // Kirimkan token dan data user minimal ke frontend-nya Silva
         res.json({
           success: true,
           message: "Autentikasi berhasil, selamat datang kembali!",
@@ -88,7 +84,7 @@ const UserController = {
     });
   },
 
-  // 3. MENAMPILKAN DETAIL USER DATA BERDASARKAN ID
+  // 3. TAMPILKAN DETAIL USER BERDASARKAN ID
   show: (req, res) => {
     const { id } = req.params;
 
@@ -106,12 +102,26 @@ const UserController = {
     });
   },
 
-  // 4. MEMPERBARUI INFORMASI DATA PROFIL USER
+  // [FIX BARU] 4. TAMPILKAN SEMUA USER (untuk Admin Dashboard)
+  // Dipanggil oleh route: GET /api/users
+  index: (req, res) => {
+    User.getAll((err, users) => {
+      if (err) {
+        return sendError(res, err, 500, "Gagal mengambil daftar pengguna.");
+      }
+      res.json({
+        success: true,
+        data: users
+      });
+    });
+  },
+
+  // 5. PERBARUI PROFIL USER
   update: (req, res) => {
     const { id } = req.params;
-    const { name, phone, address } = req.body;
+    const { name, phone, address, role } = req.body;
 
-    User.update(id, { name, phone, address }, (err, result) => {
+    User.update(id, { name, phone, address, role }, (err, result) => {
       if (err) {
         return sendError(res, err, 500, "Gagal memperbarui profil di database.");
       }
@@ -120,7 +130,23 @@ const UserController = {
         message: "Informasi profil sukses diperbarui di database MySQL."
       });
     });
-  }
+  }, // 🔑 WAJIB KASIH TANDA KOMA DI SINI SEBELUM LANJUT KE FUNGSI BERIKUTNYA!
+
+  // 🔑 6. HANDLER BARU: HAPUS AKUN SECARA BERANTAI CASCADE
+  destroy: (req, res) => {
+    const { id } = req.params;
+
+    User.deleteCascade(id, (err, result) => {
+      if (err) {
+        return sendError(res, err, 500, "Gagal menghapus data akun berantai dari database.");
+      }
+      res.json({
+        success: true,
+        message: "Akun beserta seluruh riwayat pesanan & keranjang sukses dihapus permanen."
+      });
+    });
+  } // 🔑 Jangan kasih tanda koma atau titik koma di sini jika ini fungsi paling terakhir di objek!
 };
+
 
 module.exports = UserController;

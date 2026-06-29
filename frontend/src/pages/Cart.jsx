@@ -1,136 +1,135 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import http from "../utils/api/http";
+import http from "../utils/api/http"; 
+import { useAuth } from "../context/AuthContext"; 
 
-function Cart({ cartItems, onUpdateQuantity, onRemoveItem, onClearCart, onCheckoutReady }) {
+function Cart() {
   const navigate = useNavigate();
-  const [errorNotice, setErrorNotice] = useState("");
+  const { user } = useAuth(); 
 
-  const token = localStorage.getItem("token");
-  const hasToken = !!token;
-  const authConfig = {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+  const [cartItems, setCartItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // 🔄 Ambil data isi keranjang riil langsung dari database MySQL via API backend
+  const fetchCartFromDatabase = async () => {
+    if (!user?.id) return;
+    setLoading(true);
+    try {
+      const res = await http.get(`/cart/user/${user.id}`);
+      const items = res.data?.data || res.data || [];
+      setCartItems(items);
+    } catch (err) {
+      console.error("Gagal memuat data keranjang dari database:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const totalHarga = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const totalQty = cartItems.reduce((sum, item) => sum + item.quantity, 0);
-  const totalJenisProduk = cartItems.length;
+  useEffect(() => {
+    fetchCartFromDatabase();
+  }, [user]);
 
-  const handleQtyChange = async (item, type) => {
-    const currentId = item.medicine_id || item.id;
-    const currentQty = item.quantity;
-    const newQty = type === "increase" ? currentQty + 1 : currentQty - 1;
+  // 🔄 Handler Kuantitas Baru: Halus, Instan, & Anti Kedip-Kedip!
+  const handleUpdateQuantity = async (cartItemId, currentQty, action) => {
+    const newQty = action === "plus" ? currentQty + 1 : currentQty - 1;
+    if (newQty < 1) return; // Mencegah kuantitas minus
 
-    if (newQty < 1) return;
+    // 🔑 LANGKAH 1: Update state lokal secara instant (Optimistic Update)
+    // Ini yang bikin angka langsung berubah mulus tanpa nunggu loading screen!
+    setCartItems(prevItems =>
+      prevItems.map(item =>
+        item.id === cartItemId ? { ...item, quantity: newQty } : item
+      )
+    );
 
-    if (onUpdateQuantity) {
-      onUpdateQuantity(currentId, type);
+    // 🔑 LANGKAH 2: Biarkan backend mengupdate MySQL di latar belakang
+    try {
+      await http.put(`/cart/${cartItemId}`, { quantity: newQty });
+      
+      // Kirim peluit event storage agar badge Navbar ikut terupdate secara real-time
+      window.dispatchEvent(new Event("storage"));
+    } catch (err) {
+      console.error("Gagal memperbarui jumlah item di database:", err);
+      alert("Gagal memperbarui data di server, mengembalikan jumlah semula...");
+      
+      // Rollback jika server mati/gagal koneksi, kembalikan ke data DB asli
+      fetchCartFromDatabase();
     }
+  };
 
-    if (hasToken) {
-      const targetCartItemId = item.cart_item_id || item.id;
+  // 🗑️ Handler untuk hapus item dari keranjang database
+  const handleDeleteItem = async (cartItemId) => {
+    if (window.confirm("Apakah Anda yakin ingin menghapus obat ini dari keranjang?")) {
       try {
-        setErrorNotice("");
-        await http.put(`/cart/${targetCartItemId}`, { quantity: newQty }, authConfig);
+        await http.delete(`/cart/${cartItemId}`);
+        alert("🗑️ Item berhasil dihapus dari keranjang database.");
+        fetchCartFromDatabase(); // Refresh data database
       } catch (err) {
-        const rollbackType = type === "increase" ? "decrease" : "increase";
-        if (onUpdateQuantity) onUpdateQuantity(currentId, rollbackType);
-        setErrorNotice("?? Gagal menyinkronkan kuantitas ke server database. Perubahan dikembalikan.");
+        console.error("Gagal menghapus item keranjang:", err);
       }
     }
   };
 
-  const handleRemoveClick = async (item) => {
-    const currentId = item.medicine_id || item.id;
+  // 🧮 Kalkulasi Total Harga Secara Dinamis berdasarkan DB state
+  const totalHarga = cartItems.reduce((acc, item) => {
+    return acc + Number(item.price || 0) * Number(item.quantity || 1);
+  }, 0);
 
-    if (onRemoveItem) {
-      onRemoveItem(currentId);
-    }
-
-    if (hasToken) {
-      const targetCartItemId = item.cart_item_id || item.id;
-      try {
-        setErrorNotice("");
-        await http.delete(`/cart/${targetCartItemId}`, authConfig);
-      } catch (err) {
-        setErrorNotice("?? Gagal menghapus item dari database server. Harap muat ulang halaman.");
-      }
-    }
-  };
-
-  const handleProceedToCheckout = () => {
-    if (cartItems.length === 0) return;
-    if (onCheckoutReady) {
-      onCheckoutReady(cartItems);
-    }
-    navigate("/checkout");
-  };
+  if (loading) {
+    return (
+      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "80vh", fontFamily: "sans-serif" }}>
+        <h3>🔄 Sedang menarik data keranjang belanja asli dari database...</h3>
+      </div>
+    );
+  }
 
   return (
-    <div style={{ maxWidth: "1200px", margin: "2rem auto", padding: "0 1.5rem", fontFamily: "sans-serif" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem", marginBottom: "1.5rem" }}>
-        <div>
-          <p style={{ margin: 0, fontSize: "14px", color: "#10b981", fontWeight: "700" }}>Keranjang</p>
-          <h1 style={{ margin: "0.35rem 0 0", fontSize: "2rem", color: "#0f172a" }}>Keranjang Belanja</h1>
-        </div>
-        <button onClick={() => navigate("/")} style={{ padding: "0.95rem 1.75rem", borderRadius: "14px", border: "1px solid #d1d5db", backgroundColor: "#ffffff", fontWeight: "700", cursor: "pointer" }}>
-          Lanjut Belanja
-        </button>
-      </div>
+    <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "2rem", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+      <span style={{ fontSize: "12px", color: "#10b981", fontWeight: "700" }}>Keranjang</span>
+      <h1 style={{ margin: "0 0 2rem 0", fontSize: "28px", fontWeight: "800", color: "#0f172a" }}>Keranjang Belanja</h1>
 
-      {!hasToken && (
-        <div style={{ padding: "1rem 1.25rem", backgroundColor: "#fffbeb", color: "#92400e", borderRadius: "16px", border: "1px solid #fde68a", marginBottom: "1.5rem" }}>
-          Data keranjang hanya tersimpan sementara. Login untuk menyinkronkan ke server.
-        </div>
-      )}
-
-      {errorNotice && (
-        <div style={{ padding: "1rem 1.25rem", backgroundColor: "#fef2f2", color: "#991b1b", borderRadius: "16px", border: "1px solid #fecaca", marginBottom: "1.5rem" }}>
-          {errorNotice}
-        </div>
-      )}
-
-      {totalJenisProduk === 0 ? (
-        <div style={{ backgroundColor: "#ffffff", padding: "3rem 2rem", border: "1px solid #e2e8f0", borderRadius: "24px", textAlign: "center" }}>
-          <h3 style={{ margin: "0 0 0.75rem", color: "#0f172a" }}>Keranjang Kosong</h3>
-          <p style={{ margin: "0 0 1.5rem", color: "#64748b" }}>Pilih produk terlebih dahulu untuk melanjutkan belanja.</p>
-          <button onClick={() => navigate("/")} style={{ padding: "0.95rem 1.75rem", borderRadius: "16px", border: "none", backgroundColor: "#10b981", color: "#ffffff", fontWeight: "700", cursor: "pointer" }}>
-            Kembali ke Katalog
+      {cartItems.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "3rem", border: "1px dashed #cbd5e1", borderRadius: "16px", backgroundColor: "#fff" }}>
+          <span style={{ fontSize: "48px" }}>🛒</span>
+          <h3 style={{ color: "#475569", margin: "1rem 0" }}>Keranjang belanjamu masih kosong, nih.</h3>
+          <button onClick={() => navigate("/")} style={{ padding: "0.6rem 1.5rem", backgroundColor: "#10b981", color: "#fff", border: "none", borderRadius: "8px", fontWeight: "700", cursor: "pointer" }}>
+            Mulai Belanja Obat
           </button>
         </div>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "1.9fr 1fr", gap: "1.75rem" }}>
-          <div style={{ backgroundColor: "#ffffff", borderRadius: "26px", padding: "1.75rem", border: "1px solid #e2e8f0" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem", gap: "1rem" }}>
-              <div>
-                <p style={{ margin: 0, fontSize: "14px", color: "#10b981", fontWeight: "700" }}>Daftar Produk</p>
-                <h2 style={{ margin: "0.5rem 0 0", color: "#0f172a" }}>Item di Keranjang</h2>
-              </div>
-              <button onClick={onClearCart} style={{ padding: "0.75rem 1.25rem", borderRadius: "14px", border: "1px solid #e2e8f0", backgroundColor: "#f8fafc", color: "#0f172a", fontWeight: "700", cursor: "pointer" }}>
-                Kosongkan Keranjang
-              </button>
-            </div>
-
-            <div style={{ display: "grid", gap: "1rem" }}>
+        <div style={{ display: "flex", gap: "2rem", flexWrap: "wrap" }}>
+          
+          {/* SISI KIRI: LIST ITEM KERANJANG BELANJA */}
+          <div style={{ flex: "2 1 600px", backgroundColor: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "16px", padding: "1.5rem" }}>
+            <h3 style={{ margin: "0 0 1.5rem 0", fontSize: "16px", fontWeight: "700" }}>Item di Keranjang</h3>
+            
+            <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
               {cartItems.map((item) => (
-                <div key={item.id || item.medicine_id} style={{ display: "grid", gridTemplateColumns: "90px 1fr 180px", gap: "1rem", padding: "1rem", borderRadius: "22px", backgroundColor: "#f8fafc", alignItems: "center" }}>
-                  <div style={{ width: "90px", height: "90px", borderRadius: "22px", backgroundColor: "#ffffff", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
-                    <span style={{ color: "#10b981", fontSize: "1.5rem", fontWeight: "800" }}>{(item.name || item.title || "Obat")[0]}</span>
+                <div key={item.id} style={{ display: "flex", alignItems: "center", backgroundColor: "#f8fafc", padding: "1rem", borderRadius: "12px", gap: "1rem", border: "1px solid #f1f5f9" }}>
+                  
+                  <img 
+                    src={`http://localhost:3000/uploads/${item.image}`} 
+                    alt={item.name} 
+                    style={{ width: "80px", height: "80px", objectFit: "cover", borderRadius: "10px", backgroundColor: "#fff" }}
+                    onError={(e) => { e.target.src = "https://via.placeholder.com/80?text=Obat"; }}
+                  />
+
+                  <div style={{ flex: 1 }}>
+                    <h4 style={{ margin: 0, fontSize: "15px", fontWeight: "700", color: "#1e293b" }}>{item.name}</h4>
+                    <p style={{ margin: "0.25rem 0 0 0", fontSize: "12px", color: "#64748b", maxWidth: "300px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.description}</p>
+                    <span style={{ display: "block", marginTop: "0.5rem", fontSize: "14px", fontWeight: "800", color: "#10b981" }}>
+                      Rp {Number(item.price).toLocaleString("id-ID")}
+                    </span>
                   </div>
-                  <div>
-                    <p style={{ margin: 0, fontSize: "16px", fontWeight: "700", color: "#0f172a" }}>{item.name || item.title}</p>
-                    <p style={{ margin: "0.4rem 0 0", color: "#64748b", fontSize: "13px" }}>{item.description || "Obat Bebas · Per Strip"}</p>
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "1rem" }}>
-                    <p style={{ margin: 0, fontWeight: "700", color: "#10b981" }}>Rp {Number(item.price || 0).toLocaleString("id-ID")}</p>
-                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", backgroundColor: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "14px", padding: "0.4rem 0.55rem" }}>
-                      <button onClick={() => handleQtyChange(item, "decrease")} disabled={item.quantity <= 1} style={{ width: "34px", height: "34px", borderRadius: "12px", border: "1px solid #d1d5db", backgroundColor: "#ffffff", cursor: "pointer" }}>-</button>
-                      <span style={{ minWidth: "28px", textAlign: "center", fontWeight: "700" }}>{item.quantity}</span>
-                      <button onClick={() => handleQtyChange(item, "increase")} style={{ width: "34px", height: "34px", borderRadius: "12px", border: "1px solid #d1d5db", backgroundColor: "#ffffff", cursor: "pointer" }}>+</button>
+
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.75rem" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", backgroundColor: "#fff", border: "1px solid #cbd5e1", borderRadius: "8px", padding: "0.25rem" }}>
+                      <button onClick={() => handleUpdateQuantity(item.id, item.quantity, "minus")} style={{ width: "28px", height: "28px", border: "none", backgroundColor: "transparent", cursor: "pointer", fontWeight: "700" }}>-</button>
+                      <span style={{ minWidth: "20px", textAlign: "center", fontSize: "14px", fontWeight: "700" }}>{item.quantity}</span>
+                      <button onClick={() => handleUpdateQuantity(item.id, item.quantity, "plus")} style={{ width: "28px", height: "28px", border: "none", backgroundColor: "transparent", cursor: "pointer", fontWeight: "700" }}>+</button>
                     </div>
-                    <button onClick={() => handleRemoveClick(item)} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontSize: "13px", fontWeight: "700" }}>
+                    
+                    <button onClick={() => handleDeleteItem(item.id)} style={{ backgroundColor: "transparent", border: "none", color: "#ef4444", fontSize: "12px", fontWeight: "700", cursor: "pointer" }}>
                       Hapus
                     </button>
                   </div>
@@ -139,31 +138,34 @@ function Cart({ cartItems, onUpdateQuantity, onRemoveItem, onClearCart, onChecko
             </div>
           </div>
 
-          <aside style={{ backgroundColor: "#ffffff", borderRadius: "26px", padding: "1.75rem", border: "1px solid #e2e8f0", position: "sticky", top: "1rem", height: "fit-content" }}>
-            <div style={{ marginBottom: "1.5rem" }}>
-              <p style={{ margin: 0, fontSize: "14px", color: "#10b981", fontWeight: "700" }}>Ringkasan Harga</p>
-              <h2 style={{ margin: "0.5rem 0 0", color: "#0f172a" }}>Total {totalQty} Barang</h2>
+          {/* SISI KANAN: RINGKASAN HARGA & INTEGRASI NAVIGASI */}
+          <div style={{ flex: "1 1 350px", backgroundColor: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "16px", padding: "1.5rem", height: "fit-content" }}>
+            <span style={{ fontSize: "11px", color: "#10b981", fontWeight: "700", textTransform: "uppercase" }}>Ringkasan Harga</span>
+            <h2 style={{ margin: "0.25rem 0 1.5rem 0", fontSize: "20px", fontWeight: "800", color: "#0f172a" }}>Total {cartItems.length} Barang</h2>
+            
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.75rem", fontSize: "14px", color: "#475569" }}>
+              <span>Total Harga</span>
+              <span>Rp {totalHarga.toLocaleString("id-ID")}</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "1rem", fontSize: "14px", color: "#475569", borderBottom: "1px dashed #e2e8f0", paddingBottom: "1rem" }}>
+              <span>Diskon</span>
+              <span>- Rp 0</span>
+            </div>
+            
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
+              <span style={{ fontSize: "14px", fontWeight: "700", color: "#0f172a" }}>Total Akhir</span>
+              <span style={{ fontSize: "18px", fontWeight: "800", color: "#0f172a" }}>Rp {totalHarga.toLocaleString("id-ID")}</span>
             </div>
 
-            <div style={{ display: "grid", gap: "0.9rem", marginBottom: "1.5rem" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", color: "#475569" }}>
-                <span>Total Harga</span>
-                <span>Rp {totalHarga.toLocaleString("id-ID")}</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", color: "#475569" }}>
-                <span>Diskon</span>
-                <span>- Rp 0</span>
-              </div>
-              <div style={{ borderTop: "1px dashed #cbd5e1", paddingTop: "1rem", display: "flex", justifyContent: "space-between", fontWeight: "800", color: "#0f172a", fontSize: "18px" }}>
-                <span>Total Akhir</span>
-                <span>Rp {totalHarga.toLocaleString("id-ID")}</span>
-              </div>
-            </div>
-
-            <button onClick={handleProceedToCheckout} style={{ width: "100%", padding: "1rem", borderRadius: "18px", border: "none", backgroundColor: "#10b981", color: "#ffffff", fontWeight: "700", cursor: "pointer", fontSize: "16px" }}>
+            {/* 🔑 FIX POSISI: Berada di bawah Total Akhir, melempar data state keranjang asli ke Checkout */}
+            <button 
+              onClick={() => navigate("/checkout", { state: { incomingCartItems: cartItems } })}
+              style={{ width: "100%", padding: "0.85rem", backgroundColor: "#10b981", color: "#fff", border: "none", borderRadius: "10px", fontSize: "14px", fontWeight: "700", cursor: "pointer" }}
+            >
               Lanjut Checkout
             </button>
-          </aside>
+          </div>
+
         </div>
       )}
     </div>

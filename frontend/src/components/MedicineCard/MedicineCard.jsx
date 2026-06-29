@@ -1,5 +1,5 @@
 import React from "react";
-import { Link } from "react-router-dom"; //
+import { Link } from "react-router-dom"; 
 
 function MedicineCard({ obat, onAddToCart }) {
   // Ambil ID aman dari data riil database
@@ -53,9 +53,9 @@ function MedicineCard({ obat, onAddToCart }) {
             Detail
           </Link>
           
-          {/* Tombol Beli: Tetap aman mempertahankan fungsi tambahnya */}
+          {/* Tombol Beli: 🔑 FIX: Memastikan payload objek obat membawa idObat yang konsisten */}
           <button
-            onClick={() => onAddToCart(obat)}
+            onClick={() => onAddToCart({ ...obat, id: idObat })}
             disabled={Number(obat.stock || 0) <= 0}
             style={{ flex: 1, padding: "0.5rem", backgroundColor: Number(obat.stock || 0) <= 0 ? "#cbd5e1" : "#10b981", color: "#fff", border: "none", borderRadius: "6px", fontSize: "14px", fontWeight: "600", cursor: Number(obat.stock || 0) <= 0 ? "not-allowed" : "pointer" }}
           >
