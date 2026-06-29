@@ -1,30 +1,64 @@
 import React, { useState, useEffect } from "react";
-import http from "../utils/api/http"; 
-// 🔑 IMPORT CUSTOM HOOK UTAMA SPRINT 13 KELOMPOK
-import { useAuth } from "../context/AuthContext";
+import http from "../utils/api/http"; //
 
-// 🗑️ PEMBERSIHAN PROP: Hapus properti props drilling lama karena semuanya dikelola terpusat
-function Dashboard() {
-  // 🔑 Ambil data user yang aktif dan fungsi logout langsung dari Custom Hook useAuth()
-  const { user, logout } = useAuth();
-
+function Dashboard({ currentUser, onUpdateProfile, onLogout }) {
   const [orders, setOrders] = useState([]);
   const [loadingOrders, setLoadingOrders] = useState(true);
   const [errorOrders, setErrorOrders] = useState("");
+  
+  // 🔑 REVISI FINAL: State awal di-set kosong, tidak ada lagi data Ahmad Miftahuddin yang menyelip!
+  const [liveUser, setLiveUser] = useState({
+    id: "",
+    name: "Memuat nama...",
+    email: "",
+    role: "user"
+  });
 
-  // 🗑️ PEMBERSIHAN TOTAL LOGIKA LOKAL: useEffect parsing Base64 token manual sudah dihapus sepenuhnya!
-  // Sekarang data user langsung diambil secara instan dari status session verified milik AuthContext.
+  // PARSING TOKEN OTOMATIS UNTUK MENDAPATKAN IDENTITAS USER REAL YANG LOGIN
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      try {
+        // Dekode payload JWT (string di bagian tengah antara tanda titik)
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(
+          atob(base64)
+            .split('')
+            .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+            .join('')
+        );
+        
+        const decoded = JSON.parse(jsonPayload);
+        console.log("User JWT Terdeteksi:", decoded);
+        
+        // Pasang data pengguna dari token secara reaktif dan dinamis sesuai data Udin atau siapa pun yang login!
+        setLiveUser({
+          id: decoded.id || decoded.user_id || 1,
+          name: decoded.name || decoded.username || "Pengguna Apotek",
+          email: decoded.email || "user@apotek.com",
+          role: decoded.role || "user"
+        });
+      } catch (e) {
+        console.error("Gagal membaca payload token login:", e);
+        // Fallback terakhir ke props global jika token gagal didekode
+        if (currentUser) {
+          setLiveUser(currentUser);
+        }
+      }
+    }
+  }, [currentUser]);
 
   // Ambil data transaksi riil dari tabel MySQL kelompok berdasarkan ID user yang sedang login
   useEffect(() => {
     const fetchOrderHistory = async () => {
-      if (!user || !user.id) return; // Tunggu sampai ID user dari global context siap
+      if (!liveUser.id) return; // Tunggu sampai ID user dari token siap
       
       setLoadingOrders(true);
       setErrorOrders("");
       try {
         const token = localStorage.getItem("token");
-        const userId = user.id; 
+        const userId = liveUser.id; 
         
         // Ambil data riwayat transaksi asli milik user terkait
         const response = await http.get(`http://localhost:3000/api/orders/history/${userId}`, {
@@ -49,7 +83,7 @@ function Dashboard() {
     };
 
     fetchOrderHistory();
-  }, [user]); // Memicu fetch ulang secara reaktif setiap kali data user context ter-load
+  }, [liveUser.id]);
 
   return (
     <div style={{ maxWidth: "1100px", margin: "2.5rem auto", padding: "0 1.5rem", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
@@ -61,9 +95,9 @@ function Dashboard() {
           <p style={{ margin: "0.25rem 0 0 0", color: "#64748b", fontSize: "14px" }}>Kelola informasi profil akun dan pantau histori belanja obat Anda.</p>
         </div>
         
-        {/* 🔑 TOMBOL LOGOUT GLOBAL: Terhubung langsung ke fungsi logout bawaan useAuth() */}
+        {/* TOMBOL LOGOUT REAKTIF AHMAD */}
         <button
-          onClick={logout}
+          onClick={onLogout}
           style={{ padding: "0.6rem 1.2rem", backgroundColor: "#ef4444", color: "#fff", border: "none", borderRadius: "6px", fontSize: "14px", fontWeight: "700", cursor: "pointer", transition: "0.2s", boxShadow: "0 2px 4px rgba(239, 68, 68, 0.2)" }}
           onMouseOver={(e) => e.target.style.backgroundColor = "#dc2626"}
           onMouseOut={(e) => e.target.style.backgroundColor = "#ef4444"}
@@ -80,25 +114,21 @@ function Dashboard() {
             <div style={{ width: "90px", height: "90px", borderRadius: "50%", backgroundColor: "#e2e8f0", margin: "0 auto 1rem auto", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "36px", color: "#64748b", border: "3px solid #10b981" }}>
               👤
             </div>
-            {/* 🔑 SEKARANG NAMANYA REAL-TIME AMAN DARI GLOBAL CONTEXT STATE */}
-            <h3 style={{ margin: "0 0 0.25rem 0", color: "#0f172a", fontSize: "18px", fontWeight: "700" }}>
-              {user?.name || "Memuat nama..."}
-            </h3>
+            {/* SEKARANG NAMANYA SUDAH DINAMIS MENGIKUTI USER YANG LOGIN */}
+            <h3 style={{ margin: "0 0 0.25rem 0", color: "#0f172a", fontSize: "18px", fontWeight: "700" }}>{liveUser.name}</h3>
             <span style={{ padding: "0.25rem 0.75rem", backgroundColor: "#dcfce7", color: "#15803d", borderRadius: "50px", fontSize: "12px", fontWeight: "700", textTransform: "uppercase" }}>
-              {user?.role || "user"}
+              {liveUser.role}
             </span>
           </div>
 
           <div style={{ borderTop: "1px dashed #e2e8f0", paddingTop: "1.25rem", fontSize: "14px", color: "#475569" }}>
             <div style={{ marginBottom: "0.75rem" }}>
               <span style={{ display: "block", color: "#94a3b8", fontSize: "12px", fontWeight: "600", textTransform: "uppercase" }}>Alamat Email</span>
-              <span style={{ fontWeight: "600", color: "#1e293b" }}>
-                {user?.email || "Menghubungkan..."}
-              </span>
+              <span style={{ fontWeight: "600", color: "#1e293b" }}>{liveUser.email || "Menghubungkan..."}</span>
             </div>
             <div style={{ marginBottom: "0.5rem" }}>
               <span style={{ display: "block", color: "#94a3b8", fontSize: "12px", fontWeight: "600", textTransform: "uppercase" }}>Status Autentikasi</span>
-              <span style={{ fontWeight: "600", color: "#10b981" }}>🟢 Active (Context Verified)</span>
+              <span style={{ fontWeight: "600", color: "#10b981" }}>🟢 Active (Session Verified)</span>
             </div>
           </div>
         </div>

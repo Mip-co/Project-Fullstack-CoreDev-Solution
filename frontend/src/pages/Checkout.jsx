@@ -41,7 +41,7 @@ function Checkout({ checkoutItems, onExecutePayment }) {
     try {
       // 🧼 100% CLEAN ARCHITECTURE: Variabel token lama dan header Authorization manual dihapus total!
       // Karena string Bearer JWT sudah disisipkan secara otomatis oleh interceptor di http.js
-      const dataPayload = {D
+      const dataPayload = {
         nama,
         telepon,
         alamat,
