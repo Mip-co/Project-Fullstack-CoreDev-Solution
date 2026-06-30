@@ -39,7 +39,7 @@ function AdminDashboard() {
   });
   const [selectedMedFile, setSelectedMedFile] = useState(null);
 
-  // 🔑 State Tambahan untuk Efek Hover Drag & Drop Area
+  // State Tambahan untuk Efek Hover Drag & Drop Area
   const [isDragging, setIsDragging] = useState(false);
 
   // 🔄 Tarik Seluruh Data Asli Massal dari Database MySQL Kelompok
@@ -70,8 +70,7 @@ function AdminDashboard() {
       }
       setAllOrders(ordersData);
 
-      // 2b. 🆕 Ambil detail obat yang BENAR-BENAR terjual (order_items + kategori asli)
-      // untuk donut chart "Kategori Obat" — fallback ke array kosong kalau endpoint gagal
+      // 2b. Ambil detail obat yang BENAR-BENAR terjual (order_items + kategori asli)
       let orderItemsData = [];
       try {
         const itemsRes = await http.get("/order-items");
@@ -153,7 +152,7 @@ function AdminDashboard() {
   // LOGIKA FILTER UTAMA FILE BERKAS GAMBAR (Maksimal 2MB)
   const processSelectedFile = (file) => {
     if (!file) return;
-    const maxSize = 2 * 1024 * 1024; // 2 MB
+    const maxSize = 2 * 1024 * 1024; 
     if (file.size > maxSize) {
       alert("⚠️ Ukuran file terlalu besar! Maksimal berkas adalah 2 MB.");
       setSelectedMedFile(null);
@@ -162,13 +161,11 @@ function AdminDashboard() {
     setSelectedMedFile(file);
   };
 
-  // Handler Input File Tradisional via Klik Browser
   const handleMedFileChange = (e) => {
     const file = e.target.files[0];
     processSelectedFile(file);
   };
 
-  // 🔑 HANDLER DRAG & DROP EVENTS (Mencegah default reload browser)
   const handleDragOver = (e) => {
     e.preventDefault();
     setIsDragging(true);
@@ -185,7 +182,6 @@ function AdminDashboard() {
     processSelectedFile(file);
   };
 
-  // Handle Kontrol Pembukaan Modal
   const openAddModal = () => {
     setModalMode("add");
     setMedicineForm({ category_id: "1", name: "", description: "", price: "", stock: "" });
@@ -210,6 +206,13 @@ function AdminDashboard() {
   // Handle Submit Form Obat Multipart FormData
   const handleMedicineSubmit = async (e) => {
     e.preventDefault();
+
+    // 🔑 VALIDASI REACT MANUAL: Cek jika mode tambah obat baru tapi berkas gambar masih kosong
+    if (modalMode === "add" && !selectedMedFile) {
+      alert("⚠️ Mohon unggah gambar atau seret file foto obat terlebih dahulu!");
+      return;
+    }
+
     try {
       const formDataToSend = new FormData();
       formDataToSend.append("category_id", medicineForm.category_id);
@@ -259,7 +262,7 @@ function AdminDashboard() {
     return String(order.status).toLowerCase() === filterStatus.toLowerCase();
   });
 
-  // 📊 Hitung Tren Penjualan per Bulan (Pemasukan dari order berstatus "selesai")
+  // 📊 Hitung Tren Penjualan per Bulan
   const salesTrendData = useMemo(() => {
     const monthlyTotals = {};
     allOrders.forEach(order => {
@@ -283,9 +286,6 @@ function AdminDashboard() {
   }, [allOrders]);
 
   // 🍩 Hitung Distribusi Kategori Obat untuk Donut Chart
-  // Dihitung dari order_items (obat yang benar-benar terjual, status "selesai"),
-  // dijumlahkan berdasarkan quantity, dan memakai category_name ASLI dari database
-  // (hasil JOIN ke tabel categories) — bukan label buatan sendiri.
   const categoryDistributionData = useMemo(() => {
     const totals = {};
     allOrderItems.forEach(item => {
@@ -593,9 +593,7 @@ function AdminDashboard() {
 
       </div>
 
-      {/* ────────────────────────────────────────────────────────
-          MODAL POP-UP EDIT/TAMBAH DATA OBAT DENGAN AREA DRAG & DROP
-          ──────────────────────────────────────────────────────── */}
+      {/* MODAL POP-UP EDIT/TAMBAH DATA OBAT */}
       {showModal && (
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(15, 23, 42, 0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100000 }}>
           <div style={{ backgroundColor: "#ffffff", padding: "2rem", borderRadius: "14px", width: "100%", maxWidth: "480px", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)", maxHeight: "90vh", overflowY: "auto" }}>
@@ -642,7 +640,6 @@ function AdminDashboard() {
                 </div>
               </div>
 
-              {/* 🔑 BARU: CONTAINER UPGRADE DRAG AND DROP FILE ZONE */}
               <div style={{ marginBottom: "1.5rem" }}>
                 <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#475569", marginBottom: "0.35rem" }}>Unggah Gambar Obat (Maks 2 MB)</label>
                 
@@ -663,14 +660,13 @@ function AdminDashboard() {
                     boxSizing: "border-box"
                   }}
                 >
-                  {/* Menyembunyikan input file asli agar bisa di-trigger via box click */}
+                  {/* 🔑 FIX: Menghapus property required bawaan agar tidak memicu error 'not focusable' di browser */}
                   <input 
                     id="medDropInput"
                     type="file" 
                     accept="image/*" 
                     onChange={handleMedFileChange} 
                     style={{ display: "none" }} 
-                    required={modalMode === "add"} 
                   />
                   
                   <span style={{ fontSize: "24px", display: "block", marginBottom: "0.5rem" }}>📁</span>
