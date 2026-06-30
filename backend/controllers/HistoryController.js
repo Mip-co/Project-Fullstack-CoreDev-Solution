@@ -27,6 +27,20 @@ class HistoryController {
     });
   }
 
+  // 🆕 TAMPILKAN SEMUA ORDER_ITEMS (detail obat terjual) beserta kategorinya
+  // Dipanggil oleh route: GET /api/order-items
+  // Dipakai untuk donut chart "Kategori Obat" di Admin Dashboard agar hitungannya
+  // berdasarkan obat yang BENAR-BENAR terjual, bukan sekadar jumlah obat terdaftar.
+  indexItems(req, res) {
+    History.getAllOrderItems((err, results) => {
+      if (err) return sendError(res, err, 500);
+      res.json({
+        success: true,
+        data: results
+      });
+    });
+  }
+
   // UPDATE STATUS ORDER (oleh Admin)
   update(req, res) {
     const { id } = req.params;

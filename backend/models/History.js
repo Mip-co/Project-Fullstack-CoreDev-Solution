@@ -32,6 +32,33 @@ const History = {
     });
   },
 
+  // 🆕 Ambil SEMUA order_items (detail obat yang benar-benar terjual) lengkap
+  // dengan kategori obatnya, untuk dipakai donut chart "Kategori Obat" di Admin Dashboard.
+  // Hanya menghitung order dengan status "selesai" agar mencerminkan penjualan riil.
+  getAllOrderItems: (callback) => {
+    const query = `
+      SELECT 
+        oi.id,
+        oi.order_id,
+        oi.medicine_id,
+        oi.quantity,
+        oi.price,
+        o.status,
+        m.name AS medicine_name,
+        m.category_id,
+        c.name AS category_name
+      FROM order_items oi
+      JOIN orders o ON oi.order_id = o.id
+      LEFT JOIN medicines m ON oi.medicine_id = m.id
+      LEFT JOIN categories c ON m.category_id = c.id
+      WHERE o.status = 'selesai'
+    `;
+    db.query(query, (err, results) => {
+      if (err) return callback(err, null);
+      callback(null, results);
+    });
+  },
+
   // Update status order
   updateStatus: (id, status, callback) => {
     const query = "UPDATE orders SET status = ? WHERE id = ?";

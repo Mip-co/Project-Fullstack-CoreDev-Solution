@@ -49,4 +49,7 @@ router.get("/orders/user/:userId", auth, HistoryController.index);
 router.get("/orders/history/:userId", auth, HistoryController.index);
 router.put("/orders/:id/status", auth, HistoryController.update);
 
+// 🆕 ENDPOINT ORDER ITEMS (detail obat yang terjual + kategori) — untuk donut chart Admin Dashboard
+router.get("/order-items", auth, HistoryController.indexItems);
+
 module.exports = router;

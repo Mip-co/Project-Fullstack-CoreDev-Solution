@@ -1,6 +1,15 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import http from "../../utils/api/http";
 import { useAuth } from "../../context/AuthContext";
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
+  PieChart, Pie, Cell, Legend, ResponsiveContainer
+} from "recharts";
+
+// Palet warna untuk tiap kategori obat (dipakai bergiliran sesuai urutan kategori)
+const CATEGORY_COLORS = ["#0fa968", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4", "#ec4899", "#84cc16"];
+
+const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
 
 function AdminDashboard() {
   const { user, logout } = useAuth();
@@ -11,6 +20,7 @@ function AdminDashboard() {
   // State Data Database MySQL Riil kelompok
   const [summary, setSummary] = useState({ totalUsers: 0, totalProducts: 0, totalSales: 0 });
   const [allOrders, setAllOrders] = useState([]);
+  const [allOrderItems, setAllOrderItems] = useState([]);
   const [medicines, setMedicines] = useState([]);
   const [allUsers, setAllUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -59,6 +69,17 @@ function AdminDashboard() {
         }
       }
       setAllOrders(ordersData);
+
+      // 2b. 🆕 Ambil detail obat yang BENAR-BENAR terjual (order_items + kategori asli)
+      // untuk donut chart "Kategori Obat" — fallback ke array kosong kalau endpoint gagal
+      let orderItemsData = [];
+      try {
+        const itemsRes = await http.get("/order-items");
+        orderItemsData = itemsRes.data?.data || itemsRes.data || [];
+      } catch (err) {
+        console.log("Endpoint /order-items belum tersedia, donut chart kategori akan kosong.");
+      }
+      setAllOrderItems(orderItemsData);
 
       // 3. Tembak langsung ke rute massal /users bawaan Express kalian
       let usersListData = [];
@@ -238,6 +259,47 @@ function AdminDashboard() {
     return String(order.status).toLowerCase() === filterStatus.toLowerCase();
   });
 
+  // 📊 Hitung Tren Penjualan per Bulan (Pemasukan dari order berstatus "selesai")
+  const salesTrendData = useMemo(() => {
+    const monthlyTotals = {};
+    allOrders.forEach(order => {
+      const statusClean = String(order.status).toLowerCase();
+      if (statusClean !== "selesai") return;
+
+      const rawDate = order.created_at || order.createdAt || order.date || order.updated_at;
+      const dateObj = rawDate ? new Date(rawDate) : null;
+      const monthKey = dateObj && !isNaN(dateObj) ? dateObj.getMonth() : new Date().getMonth();
+
+      monthlyTotals[monthKey] = (monthlyTotals[monthKey] || 0) + Number(order.total_price || 0);
+    });
+
+    const currentMonth = new Date().getMonth();
+    const range = [];
+    for (let i = 5; i >= 0; i--) {
+      const idx = (currentMonth - i + 12) % 12;
+      range.push({ bulan: MONTH_LABELS[idx], Pemasukan: monthlyTotals[idx] || 0 });
+    }
+    return range;
+  }, [allOrders]);
+
+  // 🍩 Hitung Distribusi Kategori Obat untuk Donut Chart
+  // Dihitung dari order_items (obat yang benar-benar terjual, status "selesai"),
+  // dijumlahkan berdasarkan quantity, dan memakai category_name ASLI dari database
+  // (hasil JOIN ke tabel categories) — bukan label buatan sendiri.
+  const categoryDistributionData = useMemo(() => {
+    const totals = {};
+    allOrderItems.forEach(item => {
+      const label = item.category_name || "Tanpa Kategori";
+      const qty = Number(item.quantity || 0);
+      totals[label] = (totals[label] || 0) + qty;
+    });
+    return Object.keys(totals).map(label => ({
+      name: label,
+      value: totals[label]
+    }));
+  }, [allOrderItems]);
+
+
   return (
     <div style={{ display: "flex", minHeight: "100vh", fontFamily: "'Plus Jakarta Sans', sans-serif", backgroundColor: "#f4f6f8", position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999 }}>
       
@@ -307,6 +369,61 @@ function AdminDashboard() {
                 <h4 style={{ margin: 0, color: "#475569", fontSize: "14px", fontWeight: "600" }}>Pelanggan</h4>
                 <h2 style={{ margin: "0.5rem 0", color: "#0f172a", fontSize: "28px", fontWeight: "800" }}>{summary.totalUsers}</h2>
                 <span style={{ fontSize: "12px", color: "#3b82f6", fontWeight: "700", backgroundColor: "#eff6ff", padding: "0.2rem 0.5rem", borderRadius: "50px" }}>👥 Akun Terdaftar</span>
+              </div>
+            </div>
+
+            {/* GRID DUA CHART: TREN PENJUALAN & DISTRIBUSI KATEGORI */}
+            <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "1.5rem" }}>
+              <div style={{ backgroundColor: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "16px", padding: "1.5rem" }}>
+                <h4 style={{ margin: 0, color: "#0f172a", fontSize: "15px", fontWeight: "800" }}>Tren Penjualan</h4>
+                <p style={{ margin: "0.15rem 0 1rem 0", color: "#94a3b8", fontSize: "12px" }}>Pemasukan omset 6 bulan terakhir</p>
+                <ResponsiveContainer width="100%" height={260}>
+                  <AreaChart data={salesTrendData} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="colorPemasukan" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#0fa968" stopOpacity={0.35} />
+                        <stop offset="95%" stopColor="#0fa968" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                    <XAxis dataKey="bulan" tick={{ fontSize: 12, fill: "#94a3b8" }} axisLine={{ stroke: "#e2e8f0" }} tickLine={false} />
+                    <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} tickFormatter={(v) => `Rp${(v / 1000).toLocaleString("id-ID")}rb`} />
+                    <Tooltip
+                      formatter={(value) => [`Rp ${Number(value).toLocaleString("id-ID")}`, "Pemasukan"]}
+                      contentStyle={{ borderRadius: "10px", border: "1px solid #e2e8f0", fontSize: "12px" }}
+                    />
+                    <Area type="monotone" dataKey="Pemasukan" stroke="#0fa968" strokeWidth={2.5} fill="url(#colorPemasukan)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+
+              <div style={{ backgroundColor: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "16px", padding: "1.5rem" }}>
+                <h4 style={{ margin: 0, color: "#0f172a", fontSize: "15px", fontWeight: "800" }}>Kategori Obat</h4>
+                <p style={{ margin: "0.15rem 0 1rem 0", color: "#94a3b8", fontSize: "12px" }}>Distribusi obat terjual per kategori (status selesai)</p>
+                {categoryDistributionData.length === 0 ? (
+                  <p style={{ fontSize: "12px", color: "#94a3b8", textAlign: "center", padding: "2rem 0" }}>Belum ada transaksi selesai untuk dihitung</p>
+                ) : (
+                  <ResponsiveContainer width="100%" height={260}>
+                    <PieChart>
+                      <Pie
+                        data={categoryDistributionData}
+                        dataKey="value"
+                        nameKey="name"
+                        cx="50%"
+                        cy="45%"
+                        innerRadius={55}
+                        outerRadius={80}
+                        paddingAngle={2}
+                      >
+                        {categoryDistributionData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={CATEGORY_COLORS[index % CATEGORY_COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(value, name) => [`${value} unit terjual`, name]} contentStyle={{ borderRadius: "10px", border: "1px solid #e2e8f0", fontSize: "12px" }} />
+                      <Legend wrapperStyle={{ fontSize: "11px" }} iconSize={8} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                )}
               </div>
             </div>
           </div>
